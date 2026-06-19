@@ -381,14 +381,34 @@ function levenshtein(a,b){
     return dp[al][bl];
 }
 
-// Prüft ob Antwort korrekt ist (exakt ODER fuzzy mit max 2 Fehler)
+// Prüft ob Antwort korrekt ist
+// 1. Exakt  2. Teilantwort (ein Wort von " / ")  3. Fuzzy (Tippfehler)
 function isAnswerCorrect(input,targets){
     const ni=norm(input);
     // Exakte Prüfung immer
     for(const t of targets){
         if(ni===norm(t))return{correct:true,exact:true};
     }
-    // Fuzzy nur wenn aktiviert
+    // Smart: Prüfe ob Eingabe ein Teil der Antwort ist (z.B. "Employee ID" für "Employee ID / Badge ID")
+    for(const t of targets){
+        const nt=norm(t);
+        // Antwort enthält " / " → Splitte in Alternativen
+        if(t.includes(" / ")){
+            const parts=t.split(" / ").map(p=>norm(p));
+            for(const part of parts){
+                if(ni===part)return{correct:true,exact:true};
+                // Fuzzy auf einzelnen Teil
+                if(window._fuzzyEnabled!==false&&ni.length>=3&&part.length>=3){
+                    if(levenshtein(ni,part)<=2)return{correct:true,exact:false,distance:levenshtein(ni,part)};
+                }
+            }
+        }
+        // Eingabe ist Teilstring der Antwort (z.B. "mitarbeiter" in "Mitarbeiterausweis")
+        if(ni.length>=3&&nt.includes(ni))return{correct:true,exact:true};
+        // Antwort ist Teilstring der Eingabe (User schreibt mehr als nötig)
+        if(ni.length>=3&&ni.includes(nt))return{correct:true,exact:true};
+    }
+    // Fuzzy nur wenn aktiviert (Tippfehler-Toleranz)
     if(window._fuzzyEnabled!==false){
         for(const t of targets){
             const nt=norm(t);
@@ -540,6 +560,10 @@ async function checkAnswer(){
     answered=true;
     lastAutoCorrect=result.correct;
 
+    // showAnswer SOFORT aufruerfen (vor await!) - setzt readOnly=true
+    // Verhindert Race Condition: User drueckt Enter waehrend dbPut laeuft
+    showAnswer();
+
     // Log in DB
     const logEntry={vocabIndex:currentIndex,input,correct:result.correct,expected:correctAnswer,fuzzy:!result.exact&&result.correct,distance:result.distance||0,timestamp:Date.now()};
     sessionLog.push(logEntry);
@@ -567,7 +591,6 @@ async function checkAnswer(){
         card.classList.add("state-wrong","pulse-red");
     }
 
-    showAnswer();
     await dbPut("progress",{vocabIndex:currentIndex,...progress});
     await saveProgressFile();
     updateStats();
