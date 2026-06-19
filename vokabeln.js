@@ -491,6 +491,7 @@ function showCard(){
     document.getElementById("vokabel-input").value="";
     document.getElementById("vokabel-input").className="";
     document.getElementById("vokabel-input").disabled=false;
+    document.getElementById("vokabel-input").readOnly=false;
     document.getElementById("check-btn").disabled=false;
     document.getElementById("card").className="card";
 
@@ -511,7 +512,9 @@ function showAnswer(){
     expEl.innerHTML=v.exp?`<strong>Erklärung:</strong> ${v.exp}`:"";
     document.getElementById("card-back").classList.remove("hidden");
     document.getElementById("action-row").classList.remove("hidden");
-    document.getElementById("vokabel-input").disabled=true;
+    // Input NICHT deaktivieren - Enter muss weiter funktionieren!
+    // NUR readonly setzen damit User nicht nachtippen kann
+    document.getElementById("vokabel-input").readOnly=true;
     document.getElementById("check-btn").disabled=true;
 }
 
