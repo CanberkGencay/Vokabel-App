@@ -382,12 +382,13 @@ function levenshtein(a,b){
 }
 
 // Prüft ob Antwort korrekt ist
-// 1. Exakt  2. Teilantwort (ein Wort von " / ")  3. Fuzzy (Tippfehler)
+// Gibt zurück: {correct, exact, type, distance}
+// type: "exact" = exakt, "synonym" = Synonym/Alternative, "fuzzy" = Tippfehler
 function isAnswerCorrect(input,targets){
     const ni=norm(input);
     // Exakte Prüfung immer
     for(const t of targets){
-        if(ni===norm(t))return{correct:true,exact:true};
+        if(ni===norm(t))return{correct:true,exact:true,type:"exact"};
     }
     // Smart: Prüfe ob Eingabe ein Teil der Antwort ist (z.B. "Employee ID" für "Employee ID / Badge ID")
     for(const t of targets){
@@ -396,17 +397,18 @@ function isAnswerCorrect(input,targets){
         if(t.includes(" / ")){
             const parts=t.split(" / ").map(p=>norm(p));
             for(const part of parts){
-                if(ni===part)return{correct:true,exact:true};
+                if(ni===part)return{correct:true,exact:true,type:"synonym"};
                 // Fuzzy auf einzelnen Teil
                 if(window._fuzzyEnabled!==false&&ni.length>=3&&part.length>=3){
-                    if(levenshtein(ni,part)<=2)return{correct:true,exact:false,distance:levenshtein(ni,part)};
+                    const d=levenshtein(ni,part);
+                    if(d<=2)return{correct:true,exact:false,type:"fuzzy",distance:d};
                 }
             }
         }
         // Eingabe ist Teilstring der Antwort (z.B. "mitarbeiter" in "Mitarbeiterausweis")
-        if(ni.length>=3&&nt.includes(ni))return{correct:true,exact:true};
+        if(ni.length>=3&&nt.includes(ni))return{correct:true,exact:true,type:"synonym"};
         // Antwort ist Teilstring der Eingabe (User schreibt mehr als nötig)
-        if(ni.length>=3&&ni.includes(nt))return{correct:true,exact:true};
+        if(ni.length>=3&&ni.includes(nt))return{correct:true,exact:true,type:"synonym"};
     }
     // Fuzzy nur wenn aktiviert (Tippfehler-Toleranz)
     if(window._fuzzyEnabled!==false){
@@ -414,11 +416,11 @@ function isAnswerCorrect(input,targets){
             const nt=norm(t);
             if(ni.length>=3&&nt.length>=3){
                 const dist=levenshtein(ni,nt);
-                if(dist<=2)return{correct:true,exact:false,distance:dist};
+                if(dist<=2)return{correct:true,exact:false,type:"fuzzy",distance:dist};
             }
         }
     }
-    return{correct:false};
+    return{correct:false,exact:false,type:null};
 }
 
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -519,7 +521,7 @@ function showCard(){
     answered=false;
 }
 
-function showAnswer(){
+function showAnswer(showActions=true){
     const v=VOCAB[currentIndex];
     const qText=document.getElementById("question-label").textContent;
     const isDE=qText.includes("englisch");
@@ -531,7 +533,7 @@ function showAnswer(){
     const expEl=document.getElementById("answer-explanation");
     expEl.innerHTML=v.exp?`<strong>Erklärung:</strong> ${v.exp}`:"";
     document.getElementById("card-back").classList.remove("hidden");
-    document.getElementById("action-row").classList.remove("hidden");
+    if(showActions)document.getElementById("action-row").classList.remove("hidden");
     // Input NICHT deaktivieren - Enter muss weiter funktionieren!
     // NUR readonly setzen damit User nicht nachtippen kann
     document.getElementById("vokabel-input").readOnly=true;
@@ -543,6 +545,7 @@ function showAnswer(){
 // ============================================================
 // Letzter Auto-Grade Resultat (für Override durch Buttons)
 let lastAutoCorrect=false;
+let lastResultType=null;
 
 async function checkAnswer(){
     if(answered)return;
@@ -559,10 +562,12 @@ async function checkAnswer(){
     const result=isAnswerCorrect(input,allAnswers);
     answered=true;
     lastAutoCorrect=result.correct;
+    lastResultType=result.type;
 
     // showAnswer SOFORT aufruerfen (vor await!) - setzt readOnly=true
     // Verhindert Race Condition: User drueckt Enter waehrend dbPut laeuft
-    showAnswer();
+    // Bei exakt: keine Action-Row (auto-weiter), bei otros: Pfeiltasten + Buttons
+    showAnswer(!result.exact);
 
     // Log in DB
     const logEntry={vocabIndex:currentIndex,input,correct:result.correct,expected:correctAnswer,fuzzy:!result.exact&&result.correct,distance:result.distance||0,timestamp:Date.now()};
@@ -575,64 +580,62 @@ async function checkAnswer(){
     const card=document.getElementById("card");
     const fb=document.getElementById("feedback");
 
-    if(result.correct){
+    if(result.exact){
+        // EXAKT → grün, auto-weiter nach kurzer Pause
         progress.correct++;sessionCorrect++;streak++;
         if(streak>bestStreak)bestStreak=streak;
         document.getElementById("vokabel-input").className="correct";
         fb.className="feedback correct";
-        fb.textContent=result.exact?`Richtig! ${correctAnswer}`:`Fast richtig! (entfernt: ${result.distance}) → ${correctAnswer}`;
+        fb.textContent=`Richtig! ${correctAnswer}`;
         card.classList.add("state-correct","pulse-green");
-        if(result.exact&&window._confettiEnabled!==false)spawnConfetti();
-    }else{
-        progress.wrong++;sessionWrong++;streak=0;
-        document.getElementById("vokabel-input").className="wrong shake";
-        fb.className="feedback wrong";
-        fb.textContent=`Falsch → ${correctAnswer}`;
-        card.classList.add("state-wrong","pulse-red");
-    }
-
-    await dbPut("progress",{vocabIndex:currentIndex,...progress});
-    await saveProgressFile();
-    updateStats();
-}
-
-// Buttons nach Check: Override den Auto-Grade
-async function markCard(correct){
-    if(answered){
-        // Override: Button-Klick ändert das Ergebnis
-        const progress=getProgress(currentIndex);
-        progress.lastSeen=Date.now();
-
-        if(correct&&!lastAutoCorrect){
-            // War als falsch markiert, jetzt als richtig bewertet
-            progress.wrong--;sessionWrong--;
-            progress.correct++;sessionCorrect++;streak++;
-            if(streak>bestStreak)bestStreak=streak;
-            const fb=document.getElementById("feedback");
-            fb.className="feedback correct";
-            fb.textContent=`Manuell als richtig markiert ✓`;
-            document.getElementById("card").className="card state-correct pulse-green";
-        }else if(!correct&&lastAutoCorrect){
-            // War als richtig markiert, jetzt als falsch bewertet
-            progress.correct--;sessionCorrect--;
-            progress.wrong++;sessionWrong++;streak=0;
-            const fb=document.getElementById("feedback");
-            fb.className="feedback wrong";
-            fb.textContent=`Manuell als falsch markiert ✗`;
-            document.getElementById("card").className="card state-wrong pulse-red";
-        }
-
+        if(window._confettiEnabled!==false)spawnConfetti();
         await dbPut("progress",{vocabIndex:currentIndex,...progress});
         await saveProgressFile();
         updateStats();
-        nextCard();
-        return;
+        // Auto-weiter nach 600ms
+        setTimeout(()=>{if(answered)nextCard()},600);
+    }else if(result.correct){
+        // SYNONYM oder FUZZY → gelb/grau, Pfeiltasten nötig
+        const isFuzzy=result.type==="fuzzy";
+        document.getElementById("vokabel-input").className=isFuzzy?"fuzzy":"synonym";
+        fb.className="feedback "+(isFuzzy?"fuzzy":"synonym");
+        fb.innerHTML=isFuzzy
+            ?`Ähnlich (entfernt: ${result.distance}) → <strong>${correctAnswer}</strong><br><span class="arrow-hint">← Falsch &nbsp;|&nbsp; Richtig →</span>`
+            :`Synonym erkannt → <strong>${correctAnswer}</strong><br><span class="arrow-hint">← Falsch &nbsp;|&nbsp; Richtig →</span>`;
+        card.classList.add(isFuzzy?"state-fuzzy":"state-synonym");
+        card.classList.add(isFuzzy?"pulse-amber":"pulse-yellow");
+        // NOCH NICHT speichern - User entscheidet mit Pfeiltasten via markCard()
+    }else{
+        // FALSCH → rot, Pfeiltasten nötig
+        document.getElementById("vokabel-input").className="wrong shake";
+        fb.className="feedback wrong";
+        fb.innerHTML=`Falsch → <strong>${correctAnswer}</strong><br><span class="arrow-hint">← Falsch &nbsp;|&nbsp; Richtig →</span>`;
+        card.classList.add("state-wrong","pulse-red");
+        // NOCH NICHT speichern - User entscheidet mit Pfeiltasten via markCard()
     }
-    // Ohne Eingabe: direkt bewerten
+}
+
+// Buttons/Pfeile nach Check: User bewertet die Antwort
+async function markCard(correct){
+    if(!answered)return;
     const progress=getProgress(currentIndex);
-    if(correct){progress.correct++;sessionCorrect++;streak++;if(streak>bestStreak)bestStreak=streak}
-    else{progress.wrong++;sessionWrong++;streak=0}
     progress.lastSeen=Date.now();
+
+    if(correct){
+        progress.correct++;sessionCorrect++;streak++;
+        if(streak>bestStreak)bestStreak=streak;
+        const fb=document.getElementById("feedback");
+        fb.className="feedback correct";
+        fb.textContent=lastResultType==="exact"?"Richtig!":`Manuell als richtig markiert ✓`;
+        document.getElementById("card").className="card state-correct pulse-green";
+    }else{
+        progress.wrong++;sessionWrong++;streak=0;
+        const fb=document.getElementById("feedback");
+        fb.className="feedback wrong";
+        fb.textContent=`Manuell als falsch markiert ✗`;
+        document.getElementById("card").className="card state-wrong pulse-red";
+    }
+
     await dbPut("progress",{vocabIndex:currentIndex,...progress});
     await saveProgressFile();
     updateStats();
@@ -955,12 +958,18 @@ document.getElementById("vokabel-input").addEventListener("keydown",e=>{
     if(e.key==="Enter"){
         e.preventDefault();
         if(answered){
-            // Antwort wurde gezeigt → nächste Karte
-            nextCard();
+            // Nur bei exakter Antwort automatisch weiter
+            if(lastResultType==="exact")nextCard();
+            // Bei Synonym/Fuzzy/Falsch: Pfeiltasten verwenden
         }else{
             // Antwort prüfen
             checkAnswer();
         }
+    }
+    // Pfeiltasten: nach Antwort bewerten
+    if(answered&&(e.key==="ArrowLeft"||e.key==="ArrowRight")){
+        e.preventDefault();
+        markCard(e.key==="ArrowRight");
     }
 });
 

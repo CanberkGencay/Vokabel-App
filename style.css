@@ -175,6 +175,8 @@ nav{
 /* Card States */
 .card.state-correct{border-color:rgba(52,211,153,.4);box-shadow:0 0 30px rgba(52,211,153,.08)}
 .card.state-wrong{border-color:rgba(251,113,133,.4);box-shadow:0 0 30px rgba(251,113,133,.08)}
+.card.state-synonym{border-color:rgba(234,179,8,.4);box-shadow:0 0 30px rgba(234,179,8,.08)}
+.card.state-fuzzy{border-color:rgba(245,158,11,.4);box-shadow:0 0 30px rgba(245,158,11,.08)}
 
 /* Card Back */
 .card-back{margin-top:16px;text-align:left}
@@ -203,6 +205,8 @@ nav{
 #vokabel-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
 #vokabel-input.correct{border-color:var(--green);background:var(--green-dim)}
 #vokabel-input.wrong{border-color:var(--red);background:var(--red-dim)}
+#vokabel-input.synonym{border-color:#eab308;background:rgba(234,179,8,.08)}
+#vokabel-input.fuzzy{border-color:#f59e0b;background:rgba(245,158,11,.08)}
 #vokabel-input:disabled{opacity:.5}
 
 .btn-primary{
@@ -227,6 +231,9 @@ nav{
 .feedback.hidden{display:none}
 .feedback.correct{background:var(--green-dim);color:var(--green);border:1px solid rgba(52,211,153,.2)}
 .feedback.wrong{background:var(--red-dim);color:var(--red);border:1px solid rgba(251,113,133,.2)}
+.feedback.synonym{background:rgba(234,179,8,.08);color:#eab308;border:1px solid rgba(234,179,8,.2)}
+.feedback.fuzzy{background:rgba(245,158,11,.08);color:#f59e0b;border:1px solid rgba(245,158,11,.2)}
+.arrow-hint{font-size:.75rem;font-weight:500;opacity:.8;display:inline-block;margin-top:4px;letter-spacing:.03em}
 
 /* ============================================
    ACTIONS
@@ -430,9 +437,13 @@ nav{
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
 @keyframes pulseGreen{0%{box-shadow:0 0 0 0 rgba(52,211,153,.3)}100%{box-shadow:0 0 0 12px rgba(52,211,153,0)}}
 @keyframes pulseRed{0%{box-shadow:0 0 0 0 rgba(251,113,133,.3)}100%{box-shadow:0 0 0 12px rgba(251,113,133,0)}}
+@keyframes pulseYellow{0%{box-shadow:0 0 0 0 rgba(234,179,8,.3)}100%{box-shadow:0 0 0 12px rgba(234,179,8,0)}}
+@keyframes pulseAmber{0%{box-shadow:0 0 0 0 rgba(245,158,11,.3)}100%{box-shadow:0 0 0 12px rgba(245,158,11,0)}}
 .shake{animation:shake .35s ease}
 .pulse-green{animation:pulseGreen .4s ease}
 .pulse-red{animation:pulseRed .4s ease}
+.pulse-yellow{animation:pulseYellow .4s ease}
+.pulse-amber{animation:pulseAmber .4s ease}
 
 /* ============================================
    RESPONSIVE
