@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocabMaster Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+
+    <div id="app">
+        <nav>
+            <div class="nav-brand">
+                <div class="brand-icon">V</div>
+                <span>VocabMaster</span>
+            </div>
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-view="quiz">Quiz</button>
+                <button class="nav-tab" data-view="dashboard">Dashboard</button>
+                <button class="nav-tab" data-view="history">Verlauf</button>
+            </div>
+            <div class="nav-actions">
+                <span class="save-status" id="save-timestamp"></span>
+                <button class="icon-btn" id="btn-save" title="Fortschritt speichern & herunterladen">💾</button>
+                <button class="icon-btn" id="btn-export" title="JSON exportieren">📤</button>
+                <button class="icon-btn" id="btn-import" title="JSON importieren">📥</button>
+            </div>
+        </nav>
+
+        <!-- ===== QUIZ VIEW ===== -->
+        <main id="view-quiz" class="view active">
+            <div class="quiz-header">
+                <div class="mode-pills">
+                    <button class="pill active" data-mode="smart">🧠 Smart</button>
+                    <button class="pill" data-mode="random">🎲 Zufällig</button>
+                    <button class="pill" data-mode="weak">🔥 Schwach</button>
+                    <button class="pill" data-mode="all">📚 Alle</button>
+                </div>
+                <div class="dir-pills">
+                    <button class="pill active" data-dir="de-en">DE → EN</button>
+                    <button class="pill" data-dir="en-de">EN → DE</button>
+                    <button class="pill" data-dir="mixed">🔀 Mix</button>
+                </div>
+            </div>
+
+            <div class="progress-ring-wrap">
+                <svg class="progress-ring" viewBox="0 0 120 120">
+                    <defs>
+                        <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#8b5cf6"/>
+                            <stop offset="50%" style="stop-color:#34d399"/>
+                            <stop offset="100%" style="stop-color:#60a5fa"/>
+                        </linearGradient>
+                    </defs>
+                    <circle class="progress-ring-bg" cx="60" cy="60" r="52"/>
+                    <circle class="progress-ring-fill" cx="60" cy="60" r="52" id="ring-fill"/>
+                </svg>
+                <div class="progress-ring-text">
+                    <span class="pct" id="ring-pct">0%</span>
+                    <small id="ring-label">gelernt</small>
+                </div>
+            </div>
+
+            <div class="stats-strip">
+                <div class="stat-chip green"><span class="dot"></span><span id="s-mastered">0</span> gelernt</div>
+                <div class="stat-chip yellow"><span class="dot"></span><span id="s-learning">0</span> lernen</div>
+                <div class="stat-chip gray"><span class="dot"></span><span id="s-new">0</span> neu</div>
+                <div class="stat-chip blue"><span class="dot"></span><span id="s-total">0/0</span></div>
+            </div>
+
+            <div class="card-container">
+                <div class="card" id="card">
+                    <div class="card-inner">
+                        <div class="card-badge" id="card-category">Teil 1</div>
+                        <div class="card-counter" id="card-counter">1 / ...</div>
+                        <p class="card-label" id="question-label">Was ist die englische Übersetzung für:</p>
+                        <h1 class="card-word" id="question-text">-</h1>
+                        <div class="card-attempts" id="card-attempts"></div>
+                    </div>
+                    <div class="card-back hidden" id="card-back">
+                        <div class="answer-section">
+                            <p class="answer-label">Richtige Antwort</p>
+                            <h2 class="answer-word" id="answer-text">-</h2>
+                            <div class="answer-divider"></div>
+                            <p class="answer-synonyms" id="answer-synonyms"></p>
+                            <p class="answer-explanation" id="answer-explanation"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-row">
+                <input type="text" id="vokabel-input" placeholder="Deine Antwort eingeben..." autocomplete="off" spellcheck="false">
+                <button class="btn-primary" id="check-btn">Prüfen ↵</button>
+            </div>
+
+            <div class="feedback hidden" id="feedback"></div>
+
+            <div class="action-row hidden" id="action-row">
+                <button class="btn-action btn-correct" onclick="markCard(true)">✓ Richtig</button>
+                <button class="btn-action btn-wrong" onclick="markCard(false)">✗ Falsch</button>
+                <button class="btn-action btn-skip" onclick="nextCard()">→ Weiter</button>
+            </div>
+
+            <div class="session-mini">
+                <span>🔥 <b id="s-streak">0</b></span>
+                <span>✓ <b id="s-correct">0</b></span>
+                <span>✗ <b id="s-wrong">0</b></span>
+                <span>⏱ <b id="s-time">0:00</b></span>
+            </div>
+        </main>
+
+        <!-- ===== DASHBOARD VIEW ===== -->
+        <main id="view-dashboard" class="view">
+            <h2 class="view-title">Dashboard</h2>
+            <div class="dash-grid">
+                <div class="dash-card wide">
+                    <h3>Kategorie-Fortschritt</h3>
+                    <div id="cat-bars"></div>
+                </div>
+                <div class="dash-card">
+                    <h3>Statistik</h3>
+                    <div class="dash-big-num green" id="dash-total-correct">0</div>
+                    <p>Richtige Antworten</p>
+                    <div class="dash-big-num red" id="dash-total-wrong">0</div>
+                    <p>Falsche Antworten</p>
+                </div>
+                <div class="dash-card">
+                    <h3>Genauigkeit</h3>
+                    <div class="dash-big-num" id="dash-accuracy">0%</div>
+                    <p>Gesamtquote</p>
+                    <div class="dash-big-num" id="dash-best-streak">0</div>
+                    <p>Beste Serie</p>
+                </div>
+                <div class="dash-card wide">
+                    <h3>Top 10 Schwache Vokabeln</h3>
+                    <div id="weak-list"></div>
+                </div>
+                <div class="dash-card wide">
+                    <h3>Gemeisterte Vokabeln</h3>
+                    <div id="mastered-list"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ===== HISTORY VIEW ===== -->
+        <main id="view-history" class="view">
+            <h2 class="view-title">Lernverlauf</h2>
+            <div class="history-controls">
+                <button class="btn-secondary" id="btn-clear-history">🗑️ Verlauf löschen</button>
+                <span id="history-count">0 Einträge</span>
+            </div>
+            <div class="history-list" id="history-list"></div>
+        </main>
+
+        <canvas id="confetti-canvas"></canvas>
+    </div>
+
+    <script src="vokabeln.js"></script>
+</body>
+</html>
