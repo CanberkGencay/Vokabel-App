@@ -30,6 +30,7 @@
                 <button class="icon-btn" id="btn-save" title="Fortschritt speichern & herunterladen">💾</button>
                 <button class="icon-btn" id="btn-export" title="JSON exportieren">📤</button>
                 <button class="icon-btn" id="btn-import" title="JSON importieren">📥</button>
+                <button class="icon-btn" id="nav-tab-settings" title="Einstellungen (S)">⚙️</button>
             </div>
         </nav>
 
@@ -158,6 +159,98 @@
             </div>
             <div class="history-list" id="history-list"></div>
         </main>
+
+        <!-- ===== SETTINGS DRAWER ===== -->
+        <div class="drawer-overlay hidden" id="drawer-overlay"></div>
+        <aside class="drawer" id="settings-drawer">
+            <div class="drawer-header">
+                <h3>Einstellungen</h3>
+                <button class="drawer-close" id="drawer-close">✕</button>
+            </div>
+            <div class="drawer-body">
+                <div class="setting-group">
+                    <h4>Karte</h4>
+                    <label class="toggle-row">
+                        <span>Synonyme anzeigen</span>
+                        <input type="checkbox" id="opt-synonyms" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <label class="toggle-row">
+                        <span>Erklärung anzeigen</span>
+                        <input type="checkbox" id="opt-explanation" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <h4>Feedback</h4>
+                    <label class="toggle-row">
+                        <span>Confetti bei richtig</span>
+                        <input type="checkbox" id="opt-confetti" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <label class="toggle-row">
+                        <span>Tippfehler-Check (±2 Buchstaben)</span>
+                        <input type="checkbox" id="opt-fuzzy" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <h4>Mastered-Schwelle</h4>
+                    <p class="setting-desc">Ab wie vielen richtigen Antworten gilt eine Vokabel als "gelernt"?</p>
+                    <div class="range-row">
+                        <input type="range" id="opt-mastered" min="2" max="10" value="3">
+                        <span id="opt-mastered-val">3</span>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <h4>Daten</h4>
+                    <button class="btn-setting" id="btn-reset">🔄 Fortschritt zurücksetzen</button>
+                    <button class="btn-setting" id="btn-export2">📤 JSON exportieren</button>
+                    <button class="btn-setting" id="btn-import2">📥 JSON importieren</button>
+                </div>
+                <div class="setting-group">
+                    <h4>Keyboard Shortcuts</h4>
+                    <div class="shortcut-list">
+                        <div class="shortcut"><kbd>Enter</kbd> Antwort prüfen / Nächste Karte</div>
+                        <div class="shortcut"><kbd>1</kbd> Als richtig markieren</div>
+                        <div class="shortcut"><kbd>2</kbd> Als falsch markieren</div>
+                        <div class="shortcut"><kbd>S</kbd> Settings öffnen</div>
+                        <div class="shortcut"><kbd>D</kbd> Dashboard</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ===== SESSION SUMMARY MODAL ===== -->
+        <div class="modal-overlay hidden" id="session-modal">
+            <div class="modal">
+                <div class="modal-icon" id="modal-icon">🎉</div>
+                <h2 class="modal-title" id="modal-title">Session beendet!</h2>
+                <div class="modal-stats">
+                    <div class="modal-stat">
+                        <div class="modal-stat-num green" id="modal-correct">0</div>
+                        <div class="modal-stat-label">Richtig</div>
+                    </div>
+                    <div class="modal-stat">
+                        <div class="modal-stat-num red" id="modal-wrong">0</div>
+                        <div class="modal-stat-label">Falsch</div>
+                    </div>
+                    <div class="modal-stat">
+                        <div class="modal-stat-num" id="modal-accuracy">0%</div>
+                        <div class="modal-stat-label">Genauigkeit</div>
+                    </div>
+                    <div class="modal-stat">
+                        <div class="modal-stat-num yellow" id="modal-streak">0</div>
+                        <div class="modal-stat-label">Beste Serie</div>
+                    </div>
+                </div>
+                <p class="modal-message" id="modal-message"></p>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="closeSessionModal();startNewSession()">Nochmal üben</button>
+                    <button class="btn-secondary" onclick="closeSessionModal()">Schließen</button>
+                </div>
+            </div>
+        </div>
 
         <canvas id="confetti-canvas"></canvas>
     </div>

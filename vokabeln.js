@@ -384,13 +384,18 @@ function levenshtein(a,b){
 // Prüft ob Antwort korrekt ist (exakt ODER fuzzy mit max 2 Fehler)
 function isAnswerCorrect(input,targets){
     const ni=norm(input);
+    // Exakte Prüfung immer
     for(const t of targets){
-        const nt=norm(t);
-        if(ni===nt)return{correct:true,exact:true};
-        // Fuzzy: max 2 Edit-Distance, aber nur wenn Eingabe lang genug
-        if(ni.length>=3&&nt.length>=3){
-            const dist=levenshtein(ni,nt);
-            if(dist<=2)return{correct:true,exact:false,distance:dist};
+        if(ni===norm(t))return{correct:true,exact:true};
+    }
+    // Fuzzy nur wenn aktiviert
+    if(window._fuzzyEnabled!==false){
+        for(const t of targets){
+            const nt=norm(t);
+            if(ni.length>=3&&nt.length>=3){
+                const dist=levenshtein(ni,nt);
+                if(dist<=2)return{correct:true,exact:false,distance:dist};
+            }
         }
     }
     return{correct:false};
@@ -398,7 +403,11 @@ function isAnswerCorrect(input,targets){
 
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function getProgress(i){if(!progressData[i])progressData[i]={correct:0,wrong:0,lastSeen:0,mastered:false};return progressData[i]}
-function isMastered(i){const p=getProgress(i);return p.correct>=3&&p.correct>p.wrong}
+function isMastered(i){
+    const threshold=window._masteredThreshold||3;
+    const p=getProgress(i);
+    return p.correct>=threshold&&p.correct>=p.wrong*2&&p.correct+p.wrong>=threshold;
+}
 function wrongRate(i){const p=getProgress(i);const t=p.correct+p.wrong;return t===0?0:p.wrong/t}
 function totalAttempts(i){const p=getProgress(i);return p.correct+p.wrong}
 
@@ -546,7 +555,7 @@ async function checkAnswer(){
         fb.className="feedback correct";
         fb.textContent=result.exact?`Richtig! ${correctAnswer}`:`Fast richtig! (entfernt: ${result.distance}) → ${correctAnswer}`;
         card.classList.add("state-correct","pulse-green");
-        if(result.exact)spawnConfetti();
+        if(result.exact&&window._confettiEnabled!==false)spawnConfetti();
     }else{
         progress.wrong++;sessionWrong++;streak=0;
         document.getElementById("vokabel-input").className="wrong shake";
@@ -604,7 +613,15 @@ async function markCard(correct){
     nextCard();
 }
 
-function nextCard(){queuePos++;showCard();updateStats()}
+function nextCard(){
+    queuePos++;
+    // Queue zu Ende? Session-Zusammenfassung zeigen
+    if(queuePos>=queue.length){
+        showSessionModal();
+        return;
+    }
+    showCard();updateStats()
+}
 
 // ============================================================
 // DASHBOARD
@@ -909,7 +926,16 @@ async function loadProgressFromDB(){
 // ============================================================
 document.getElementById("check-btn").addEventListener("click",checkAnswer);
 document.getElementById("vokabel-input").addEventListener("keydown",e=>{
-    if(e.key==="Enter"){answered?nextCard():checkAnswer()}
+    if(e.key==="Enter"){
+        e.preventDefault();
+        if(answered){
+            // Antwort wurde gezeigt → nächste Karte
+            nextCard();
+        }else{
+            // Antwort prüfen
+            checkAnswer();
+        }
+    }
 });
 
 document.querySelectorAll(".pill[data-mode]").forEach(p=>{
@@ -941,13 +967,123 @@ document.querySelectorAll(".nav-tab").forEach(tab=>{
 document.getElementById("btn-export").addEventListener("click",manualDownload);
 document.getElementById("btn-import").addEventListener("click",importDB);
 document.getElementById("btn-save").addEventListener("click",async()=>{
-    // Versuche File System Access API, sonst manueller Download
     const picked=await pickFileToSave();
     if(!picked)manualDownload();
 });
 document.getElementById("btn-clear-history").addEventListener("click",async()=>{
     if(confirm("Verlauf wirklich löschen?")){await dbClear("log");renderHistory()}
 });
+
+// ============================================================
+// SETTINGS DRAWER
+// ============================================================
+const drawer=document.getElementById("settings-drawer");
+const overlay=document.getElementById("drawer-overlay");
+
+function openDrawer(){drawer.classList.add("open");overlay.classList.remove("hidden")}
+function closeDrawer(){drawer.classList.remove("open");overlay.classList.add("hidden")}
+
+document.getElementById("nav-tab-settings")?.addEventListener("click",openDrawer);
+overlay.addEventListener("click",closeDrawer);
+document.getElementById("drawer-close").addEventListener("click",closeDrawer);
+
+// Settings toggles
+document.getElementById("opt-synonyms").addEventListener("change",e=>{
+    document.getElementById("answer-synonyms").style.display=e.target.checked?"":"none";
+});
+document.getElementById("opt-explanation").addEventListener("change",e=>{
+    document.getElementById("answer-explanation").style.display=e.target.checked?"":"none";
+});
+document.getElementById("opt-mastered").addEventListener("input",e=>{
+    document.getElementById("opt-mastered-val").textContent=e.target.value;
+    window._masteredThreshold=parseInt(e.target.value);
+});
+window._masteredThreshold=3;
+
+// Confetti Toggle
+window._confettiEnabled=true;
+document.getElementById("opt-confetti").addEventListener("change",e=>{window._confettiEnabled=e.target.checked});
+
+// Fuzzy Toggle
+window._fuzzyEnabled=true;
+document.getElementById("opt-fuzzy").addEventListener("change",e=>{window._fuzzyEnabled=e.target.checked});
+
+// Override isMastered to use dynamic threshold
+const origIsMastered=isMastered;
+// (Already uses correct>=3, we override below in queue)
+
+document.getElementById("btn-reset").addEventListener("click",async()=>{
+    if(confirm("Wirklich ALLEN Fortschritt löschen?\n\nDas kann nicht rückgängig gemacht werden.")){
+        await dbClear("progress");await dbClear("log");
+        localStorage.removeItem(FILE_KEY);
+        progressData={};sessionCorrect=0;sessionWrong=0;streak=0;bestStreak=0;
+        queue=buildQueue();queuePos=0;
+        showCard();updateStats();closeDrawer();
+    }
+});
+document.getElementById("btn-export2").addEventListener("click",()=>{manualDownload()});
+document.getElementById("btn-import2").addEventListener("click",()=>{importDB()});
+
+// ============================================================
+// SESSION SUMMARY MODAL
+// ============================================================
+function showSessionModal(){
+    if(sessionCorrect+sessionWrong===0)return;
+    const total=sessionCorrect+sessionWrong;
+    const acc=Math.round(sessionCorrect/total*100);
+
+    document.getElementById("modal-correct").textContent=sessionCorrect;
+    document.getElementById("modal-wrong").textContent=sessionWrong;
+    document.getElementById("modal-accuracy").textContent=acc+"%";
+    document.getElementById("modal-streak").textContent=bestStreak;
+
+    let icon="🎉",msg="";
+    if(acc>=90){icon="🏆";msg="Exzellent! Du meisterst das Material!";}
+
+    else if(acc>=70){icon="💪";msg="Sehr gut! Weiter so!";}
+
+    else if(acc>=50){icon="👍";msg="Guter Fortschritt, übe die schwachen Stellen nochmal.";}
+
+    else{icon="📖";msg="Du bist auf dem Weg! Wiederholung ist der Schlüssel.";}
+
+    document.getElementById("modal-icon").textContent=icon;
+    document.getElementById("modal-message").textContent=msg;
+    document.getElementById("session-modal").classList.remove("hidden");
+}
+
+function closeSessionModal(){document.getElementById("session-modal").classList.add("hidden")}
+
+function startNewSession(){
+    sessionCorrect=0;sessionWrong=0;streak=0;
+    queue=buildQueue();queuePos=0;
+    showCard();updateStats();
+}
+
+// ============================================================
+// GLOBAL KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener("keydown",e=>{
+    // Ignore when typing in input
+    if(document.activeElement===document.getElementById("vokabel-input"))return;
+    // Ignore when drawer/modal open
+    if(!drawer.classList.contains("open")&&!document.getElementById("session-modal").classList.contains("hidden"))return;
+
+    switch(e.key.toLowerCase()){
+        case's':e.preventDefault();openDrawer();break;
+        case'd':e.preventDefault();document.querySelector('[data-view="dashboard"]').click();break;
+        case'h':e.preventDefault();document.querySelector('[data-view="history"]').click();break;
+        case'q':e.preventDefault();document.querySelector('[data-view="quiz"]').click();break;
+        case'1':if(answered)markCard(true);break;
+        case'2':if(answered)markCard(false);break;
+        case'escape':closeDrawer();closeSessionModal();break;
+    }
+});
+
+// Auto-save every 30 seconds
+setInterval(async()=>{
+    await saveProgressFile();
+    updateStats();
+},30000);
 
 // Update timer
 setInterval(()=>{if(!answered)updateStats()},1000);
