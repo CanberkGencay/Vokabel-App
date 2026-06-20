@@ -601,8 +601,8 @@ async function checkAnswer(){
         document.getElementById("vokabel-input").className=isFuzzy?"fuzzy":"synonym";
         fb.className="feedback "+(isFuzzy?"fuzzy":"synonym");
         fb.innerHTML=isFuzzy
-            ?`Ähnlich (entfernt: ${result.distance}) → <strong>${correctAnswer}</strong><br><span class="arrow-hint">← Falsch &nbsp;|&nbsp; Richtig →</span>`
-            :`Synonym erkannt → <strong>${correctAnswer}</strong><br><span class="arrow-hint">← Falsch &nbsp;|&nbsp; Richtig →</span>`;
+            ?`Ähnlich (entfernt: ${result.distance}) → <strong>${correctAnswer}</strong><br><span class="arrow-hint">← Richtig &nbsp;|&nbsp; Falsch →</span>`
+            :`Synonym erkannt → <strong>${correctAnswer}</strong><br><span class="arrow-hint">← Richtig &nbsp;|&nbsp; Falsch →</span>`;
         card.classList.add(isFuzzy?"state-fuzzy":"state-synonym");
         card.classList.add(isFuzzy?"pulse-amber":"pulse-yellow");
         // NOCH NICHT speichern - User entscheidet mit Pfeiltasten via markCard()
@@ -610,7 +610,7 @@ async function checkAnswer(){
         // FALSCH → rot, Pfeiltasten nötig
         document.getElementById("vokabel-input").className="wrong shake";
         fb.className="feedback wrong";
-        fb.innerHTML=`Falsch → <strong>${correctAnswer}</strong><br><span class="arrow-hint">← Falsch &nbsp;|&nbsp; Richtig →</span>`;
+        fb.innerHTML=`Falsch → <strong>${correctAnswer}</strong><br><span class="arrow-hint">← Richtig &nbsp;|&nbsp; Falsch →</span>`;
         card.classList.add("state-wrong","pulse-red");
         // NOCH NICHT speichern - User entscheidet mit Pfeiltasten via markCard()
     }
@@ -989,10 +989,10 @@ document.getElementById("vokabel-input").addEventListener("keydown",e=>{
             checkAnswer();
         }
     }
-    // Pfeiltasten: nach Antwort bewerten
+    // Pfeiltasten: Links=Richtig, Rechts=Falsch
     if(answered&&(e.key==="ArrowLeft"||e.key==="ArrowRight")){
         e.preventDefault();
-        markCard(e.key==="ArrowRight");
+        markCard(e.key==="ArrowLeft");
     }
 });
 
