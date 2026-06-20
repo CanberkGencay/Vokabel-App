@@ -361,6 +361,7 @@ let sessionWrong=0;
 let streak=0;
 let bestStreak=0;
 let sessionStart=Date.now();
+let sessionRetryCount={};  // vocabIndex → wie oft in dieser Session als falsch markiert
 
 // ============================================================
 // HELPERS
@@ -622,17 +623,36 @@ async function markCard(correct){
     progress.lastSeen=Date.now();
 
     if(correct){
+        // Als RICHTIG markieren
+        // War es bereits als falsch markiert (auto-graded wrong)? Korrigiere
+        if(lastResultType===null){
+            // Exakte Antwort wurde auto-graded correct (progress bereits aktualisiert)
+            // Nichts extra tun
+        }
+        // Für Synonym/Fuzzy: progress noch nicht gespeichert → jetzt als correct speichern
         progress.correct++;sessionCorrect++;streak++;
         if(streak>bestStreak)bestStreak=streak;
         const fb=document.getElementById("feedback");
         fb.className="feedback correct";
-        fb.textContent=lastResultType==="exact"?"Richtig!":`Manuell als richtig markiert ✓`;
+        fb.textContent=lastResultType==="exact"?"Richtig!":`Als richtig markiert ✓`;
         document.getElementById("card").className="card state-correct pulse-green";
     }else{
+        // Als FALSCH markieren → retry sofort
+        // Wenn auto-graded correct (exact): korrigiere wrong-Zähler, nicht correct
+        if(lastResultType==="exact"||lastAutoCorrect){
+            progress.correct--;sessionCorrect--;
+        }
         progress.wrong++;sessionWrong++;streak=0;
+        // Nur retry wenn < 2x in dieser Session (verhindert Endlos-Schleife)
+        const retries=sessionRetryCount[currentIndex]||0;
+        if(retries<2){
+            // Wort ans Queue-Ende für sofortigen Retry
+            queue.push(currentIndex);
+            sessionRetryCount[currentIndex]=retries+1;
+        }
         const fb=document.getElementById("feedback");
         fb.className="feedback wrong";
-        fb.textContent=`Manuell als falsch markiert ✗`;
+        fb.textContent=`Falsch markiert ✗ → Retry kommt!`;
         document.getElementById("card").className="card state-wrong pulse-red";
     }
 
@@ -958,9 +978,8 @@ document.getElementById("vokabel-input").addEventListener("keydown",e=>{
     if(e.key==="Enter"){
         e.preventDefault();
         if(answered){
-            // Nur bei exakter Antwort automatisch weiter
-            if(lastResultType==="exact")nextCard();
-            // Bei Synonym/Fuzzy/Falsch: Pfeiltasten verwenden
+            // Enter = IMMER nächste Karte (auch bei Synonym/Fuzzy/Falsch)
+            nextCard();
         }else{
             // Antwort prüfen
             checkAnswer();
@@ -1090,6 +1109,7 @@ function closeSessionModal(){document.getElementById("session-modal").classList.
 
 function startNewSession(){
     sessionCorrect=0;sessionWrong=0;streak=0;
+    sessionRetryCount={};sessionStart=Date.now();
     queue=buildQueue();queuePos=0;
     showCard();updateStats();
 }
