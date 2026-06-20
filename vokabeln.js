@@ -437,7 +437,10 @@ function getProgress(i){
     if(p.reviewCount===undefined)p.reviewCount=(p.correct||0)+(p.wrong||0);
     if(p.lastReview===undefined)p.lastReview=p.lastSeen||0;
     if(p.reviewDue===undefined)p.reviewDue=0;
-    if(p.exactCorrect===undefined)p.exactCorrect=0;
+    if(p.exactCorrect===undefined){
+        // Migration: alle alten "correct" = "exactCorrect" (da altes System keine Synonym-Speicherung kannte)
+        p.exactCorrect=(p.correct||0);
+    }
     return p;
 }
 function isMastered(i){
@@ -560,7 +563,7 @@ function sm2Forecast(){
         }
     }
     const avgEF=reviewed>0?totalEF/reviewed:2.5;
-    const avgRetention=Math.round(Math.min(100,Math.max(0,((avgEF-1.3)/1.2)*100));
+    const avgRetention=Math.round(Math.min(100,Math.max(0,((avgEF-1.3)/1.2)*100)));
     return{dueToday,dueWeek,avgEF,avgRetention,mastered,total:VOCAB.length,dueCards};
 }
 
