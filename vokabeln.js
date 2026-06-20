@@ -751,8 +751,7 @@ async function checkAnswer(){
 
     if(result.exact){
         // EXAKT → grün, auto-weiter nach kurzer Pause
-        progress.correct++;sessionCorrect++;streak++;
-        progress.exactCorrect++;sessionCorrect++;
+        progress.correct++;progress.exactCorrect++;sessionCorrect++;streak++;
         if(streak>bestStreak)bestStreak=streak;
         document.getElementById("vokabel-input").className="correct";
         fb.className="feedback correct";
@@ -1189,8 +1188,14 @@ document.getElementById("vokabel-input").addEventListener("keydown",e=>{
     if(e.key==="Enter"){
         e.preventDefault();
         if(answered){
-            // Enter = IMMER nächste Karte (auch bei Synonym/Fuzzy/Falsch)
-            nextCard();
+            // Enter = Auto-Mark + nächste Karte:
+            // Wenn noch kein Urteil (←/→) und die Antwort falsch war → auto-als-falsch-markieren
+            if(!lastResultType)return;
+            if(!lastAutoCorrect){
+                markCard(false); // Falsch markieren, dann nextCard
+            }else{
+                nextCard();
+            }
         }else{
             // Antwort prüfen
             checkAnswer();
