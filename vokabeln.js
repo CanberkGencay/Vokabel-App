@@ -382,79 +382,240 @@ function levenshtein(a,b){
     return dp[al][bl];
 }
 
-// Prüft ob Antwort korrekt ist
+// Prüft ob Antwort korrekt ist (STRENG: nur targets[0] = korrekt, targets[1+] = Alternativen)
 // Gibt zurück: {correct, exact, type, distance}
-// type: "exact" = exakt, "synonym" = Synonym/Alternative, "fuzzy" = Tippfehler
+// type: "exact" = exakt, "synonym" = Substring des korrekten Ziels, "fuzzy" = Tippfehler, null = falsch
 function isAnswerCorrect(input,targets){
     const ni=norm(input);
-    // Exakte Prüfung immer
-    for(const t of targets){
-        if(ni===norm(t))return{correct:true,exact:true,type:"exact"};
+
+    // 1. EXACT match auf CORRECT target (targets[0]) → RICHTIG
+    if(ni===norm(targets[0]))return{correct:true,exact:true,type:"exact"};
+
+    // 2. EXACT match auf Alternativen (targets[1+]) → FALSCH (Prof will nur targets[0])
+    for(let i=1;i<targets.length;i++){
+        if(ni===norm(targets[i]))return{correct:false,exact:false,type:null};
     }
-    // Smart: Prüfe ob Eingabe ein Teil der Antwort ist (z.B. "Employee ID" für "Employee ID / Badge ID")
-    for(const t of targets){
-        const nt=norm(t);
-        // Antwort enthält " / " → Splitte in Alternativen
-        if(t.includes(" / ")){
-            const parts=t.split(" / ").map(p=>norm(p));
-            for(const part of parts){
-                if(ni===part)return{correct:true,exact:true,type:"synonym"};
-                // Fuzzy auf einzelnen Teil
-                if(window._fuzzyEnabled!==false&&ni.length>=3&&part.length>=3){
-                    const d=levenshtein(ni,part);
-                    if(d<=2)return{correct:true,exact:false,type:"fuzzy",distance:d};
-                }
-            }
-        }
-        // Eingabe ist Teilstring der Antwort (z.B. "mitarbeiter" in "Mitarbeiterausweis")
-        if(ni.length>=3&&nt.includes(ni))return{correct:true,exact:true,type:"synonym"};
-        // Antwort ist Teilstring der Eingabe (User schreibt mehr als nötig)
-        if(ni.length>=3&&ni.includes(nt))return{correct:true,exact:true,type:"synonym"};
+
+    // 3. FUZZY match auf CORRECT target (targets[0])
+    if(window._fuzzyEnabled!==false&&ni.length>=3&&norm(targets[0]).length>=3){
+        const d=levenshtein(ni,norm(targets[0]));
+        if(d<=2)return{correct:true,exact:false,type:"fuzzy",distance:d};
     }
-    // Fuzzy nur wenn aktiviert (Tippfehler-Toleranz)
+
+    // 4. FUZZY match auf Alternativen (targets[1+]) — Tippfehler-Toleranz gilt auch hier
     if(window._fuzzyEnabled!==false){
-        for(const t of targets){
-            const nt=norm(t);
+        for(let i=1;i<targets.length;i++){
+            const nt=norm(targets[i]);
             if(ni.length>=3&&nt.length>=3){
-                const dist=levenshtein(ni,nt);
-                if(dist<=2)return{correct:true,exact:false,type:"fuzzy",distance:dist};
+                const d=levenshtein(ni,nt);
+                if(d<=2)return{correct:true,exact:false,type:"fuzzy",distance:d};
             }
         }
     }
+
+    // 5. SUBSTRING: User-Eingabe ist Substring des CORRECT target — NUR targets[0]
+    const correctNorm=norm(targets[0]);
+    if(ni.length>=3&&correctNorm.includes(ni))return{correct:true,exact:true,type:"synonym"};
+    if(ni.length>=3&&ni.includes(correctNorm))return{correct:true,exact:true,type:"synonym"};
+
+    // 6. FALSCH
     return{correct:false,exact:false,type:null};
 }
 
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function getProgress(i){if(!progressData[i])progressData[i]={correct:0,wrong:0,lastSeen:0,mastered:false};return progressData[i]}
+function getProgress(i){
+    if(!progressData[i])progressData[i]={
+        correct:0,wrong:0,lastSeen:0,
+        reviewCount:0,interval:1,easinessFactor:2.5,
+        lastReview:0,reviewDue:0,
+        exactCorrect:0
+    };
+    const p=progressData[i];
+    // Migration: alte Daten ohne SM-2-Felder
+    if(p.interval===undefined)p.interval=1;
+    if(p.easinessFactor===undefined)p.easinessFactor=2.5;
+    if(p.reviewCount===undefined)p.reviewCount=(p.correct||0)+(p.wrong||0);
+    if(p.lastReview===undefined)p.lastReview=p.lastSeen||0;
+    if(p.reviewDue===undefined)p.reviewDue=0;
+    if(p.exactCorrect===undefined)p.exactCorrect=0;
+    return p;
+}
 function isMastered(i){
     const threshold=window._masteredThreshold||3;
     const p=getProgress(i);
-    return p.correct>=threshold&&p.correct>=p.wrong*2&&p.correct+p.wrong>=threshold;
+    // SM-2: wenn Karte auf langem Intervall AND gutem EF
+    const sm2Criteria=p.interval>=14&&p.easinessFactor>=2.3;
+    // Mastered wenn:
+    // 1) Mindestanzahl exakte Treffer
+    // 2) Mindestanzahl Gesamt-Treffer
+    // 3) Ratio >= 1.5 (bei >0 wrong)
+    const ratioOK=p.wrong===0||(p.exactCorrect/p.wrong)>=1.5;
+    const legacyCriteria=p.exactCorrect>=threshold&&p.correct>=threshold&&ratioOK;
+    return sm2Criteria||legacyCriteria;
+}
+
+function getMasteryInfo(i){
+    const p=getProgress(i);
+    const threshold=window._masteredThreshold||3;
+    const total=p.exactCorrect+p.wrong;
+    const ratio=p.wrong===0?Infinity:(p.exactCorrect/p.wrong).toFixed(2);
+    const exactNeeded=Math.max(0,threshold-p.exactCorrect);
+    const wrongAllowed=p.wrong===0?Infinity:Math.floor(p.exactCorrect/1.5);
+    const ratioNeeded=Math.max(0,wrongAllowed-p.wrong);
+    return{
+        exact:p.exactCorrect,totalCorrect:p.correct,wrong:p.wrong,
+        ratio,threshold,
+        exactNeeded,wrongAllowed,ratioNeeded,
+        isMastered:isMastered(i),
+        isSM2:p.interval>=14&&p.easinessFactor>=2.3,
+        interval:p.interval,EF:p.easinessFactor
+    };
 }
 function wrongRate(i){const p=getProgress(i);const t=p.correct+p.wrong;return t===0?0:p.wrong/t}
 function totalAttempts(i){const p=getProgress(i);return p.correct+p.wrong}
 
 // ============================================================
+// SM-2 SPACED REPETITION ENGINE
+// ============================================================
+
+// Konvertiert Result-Typ zu SM-2 Quality (0-5)
+function sm2Quality(resultType,correct){
+    if(!correct)return resultType?1:0; // falsch: 1 wenn gezeigt, 0 wenn nichts eingegeben
+    switch(resultType){
+        case"exact":return 5;    // perfekt
+        case"synonym":return 4;  // korrekte Hilfe
+        case"fuzzy":return 3;    // mit Mühe
+        default:return 3;
+    }
+}
+
+// Berechnet nächste Intervall + EF nach SM-2
+function sm2Calculate(EF,q,currentInterval){
+    let newEF=EF+(0.1-(5-q)*(0.08+(5-q)*0.02));
+    newEF=Math.max(1.3,newEF);
+    let newInterval;
+    if(q<3){
+        newInterval=1; // Reset
+    }else{
+        if(currentInterval<=1)newInterval=1;
+        else if(currentInterval<6)newInterval=6;
+        else newInterval=Math.round(currentInterval*newEF);
+    }
+    return{interval:newInterval,EF:newEF};
+}
+
+// Aktualisiert Review-Schedule für eine Karte
+function sm2Update(vocabIndex,quality){
+    const p=getProgress(vocabIndex);
+    const now=Date.now();
+    p.lastReview=now;
+    if(quality>=3){
+        p.reviewCount++;
+        const r=sm2Calculate(p.easinessFactor,quality,p.interval);
+        p.interval=r.interval;
+        p.easinessFactor=r.EF;
+        p.reviewDue=now+(r.interval*24*60*60*1000);
+    }else{
+        p.reviewCount++;
+        p.interval=1;
+        p.easinessFactor=Math.max(1.3,p.easinessFactor-0.2);
+        p.reviewDue=now+(1*24*60*60*1000);
+    }
+}
+
+// Prüft ob Karte fällig für Review ist
+function sm2IsDue(vocabIndex){
+    const p=getProgress(vocabIndex);
+    if(!p.reviewDue||p.reviewCount===0)return true;
+    return Date.now()>=p.reviewDue;
+}
+
+// Gibt alle fälligen Karten zurück
+function sm2GetDue(){
+    const due=[];
+    for(let i=0;i<VOCAB.length;i++){
+        if(sm2IsDue(i))due.push(i);
+    }
+    return due;
+}
+
+// Retention-Forecast: wie viele Karten sind fällig + Prognose
+function sm2Forecast(){
+    const now=Date.now();
+    const weekFromNow=now+(7*24*60*60*1000);
+    let dueToday=0,dueWeek=0,totalEF=0,mastered=0,reviewed=0;
+    let dueCards=[];
+    for(let i=0;i<VOCAB.length;i++){
+        const p=getProgress(i);
+        if(p.reviewDue){
+            if(p.reviewDue<=weekFromNow){
+                dueWeek++;
+                if(p.reviewDue<=now){dueToday++;dueCards.push(i)}
+            }
+        }else{dueToday++;dueWeek++;dueCards.push(i)}
+        if(p.reviewCount>0){
+            totalEF+=p.easinessFactor||2.5;
+            reviewed++;
+            if(p.interval>=14&&p.easinessFactor>=2.3)mastered++;
+        }
+    }
+    const avgEF=reviewed>0?totalEF/reviewed:2.5;
+    const avgRetention=Math.round(Math.min(100,Math.max(0,((avgEF-1.3)/1.2)*100));
+    return{dueToday,dueWeek,avgEF,avgRetention,mastered,total:VOCAB.length,dueCards};
+}
+
+// ============================================================
 // QUEUE
 // ============================================================
 function buildQueue(){
-    let idx=VOCAB.map((_,i)=>i);
-    if(currentMode==="smart"){
-        idx.sort((a,b)=>{
-            const pa=getProgress(a),pb=getProgress(b);
-            const aU=pa.correct+pa.wrong===0?1:0,bU=pb.correct+pb.wrong===0?1:0;
-            if(aU!==bU)return bU-aU;
-            const wrA=wrongRate(a),wrB=wrongRate(b);
-            if(Math.abs(wrA-wrB)>0.01)return wrB-wrA;
-            return totalAttempts(a)-totalAttempts(b);
-        });
-    }else if(currentMode==="weak"){
-        idx=idx.filter(i=>wrongRate(i)>0&&!isMastered(i));
-        idx.sort((a,b)=>wrongRate(b)-wrongRate(a));
-    }else if(currentMode==="random"){
-        shuffle(idx);
+    const due=sm2GetDue();  // SM-2: alle fälligen Karten
+    let newCards=[];
+    for(let i=0;i<VOCAB.length;i++){
+        const p=getProgress(i);
+        if(p.reviewCount===0&&!due.includes(i))newCards.push(i);
     }
-    return idx;
+    newCards.sort((a,b)=>{
+        const pa=getProgress(a),pb=getProgress(b);
+        const wrA=wrongRate(a),wrB=wrongRate(b);
+        if(Math.abs(wrA-wrB)>0.01)return wrB-wrA;
+        return totalAttempts(a)-totalAttempts(b);
+    });
+    if(currentMode==="smart"){
+        // Interleaved: wechsle zwischen due (Review) und newCards
+        // Priority: due cards first, dann neue sortiert nach wrongRate
+        const combined=[];
+        let d=0,n=0;
+        // Zuerst: alle due (sortiert nach interval aufsteigend = am längsten überfällig zuerst)
+        due.sort((a,b)=>{
+            const pa=getProgress(a),pb=getProgress(b);
+            return (pa.reviewDue||0)-(pb.reviewDue||0); // am längsten überfällig zuerst
+        });
+        // Dann: bis zu 15 neue Karten pro Session
+        const maxNew=Math.min(15,newCards.length);
+        const newSlice=newCards.slice(0,maxNew);
+        // Interleave: 3 due : 1 new (3:1 Ratio)
+        let dIdx=0,nIdx=0;
+        let batch=0;
+        while(dIdx<due.length||nIdx<newSlice.length){
+            // Alle 3 due ein new
+            for(let k=0;k<3&&dIdx<due.length;k++){
+                combined.push(due[dIdx++]);
+            }
+            if(nIdx<newSlice.length){
+                combined.push(newSlice[nIdx++]);
+            }
+        }
+        return combined;
+    }else if(currentMode==="weak"){
+        return VOCAB.map((_,i)=>i).filter(i=>wrongRate(i)>0&&!isMastered(i)).sort((a,b)=>{
+            const pa=getProgress(a),pb=getProgress(b);
+            return (pa.reviewDue||0)-(pb.reviewDue||0);
+        });
+    }else if(currentMode==="random"){
+        return shuffle([...due,...newCards]);
+    }
+    // all: alle neuen + alle due (kein Filter)
+    return shuffle([...newCards,...due]);
 }
 
 // ============================================================
@@ -504,8 +665,12 @@ function showCard(){
     document.getElementById("card-category").textContent=v.cat;
 
     const p=getProgress(currentIndex);
-    const attemptText=p.correct+p.wrong>0?`Versuche: ${p.correct+p.wrong} | ✓ ${p.correct} | ✗ ${p.wrong}`:"Neue Vokabel";
-    document.getElementById("card-attempts").textContent=attemptText;
+const exactText=p.exactCorrect>0?`✓${p.exactCorrect} exakt`:'';
+    const attemptText=p.exactCorrect+p.wrong>0?`Versuche: ${p.exactCorrect+p.wrong} ${exactText}`:"Neue Vokabel";
+    const daysUntilReview=p.exactCorrect+p.wrong>0?Math.max(0,Math.ceil((p.reviewDue-Date.now())/(24*60*60*1000))):0;
+    const nextText=daysUntilReview<=0?"Fällig!":`Review in ${daysUntilReview}d`;
+    const attemptTextFull=p.exactCorrect+p.wrong>0?`${attemptText} | EF ${p.easinessFactor.toFixed(1)} | ${nextText}`:attemptText;
+    document.getElementById("card-attempts").textContent=attemptTextFull;
     document.getElementById("card-counter").textContent=`${queuePos+1} / ${queue.length}`;
 
     document.getElementById("card-back").classList.add("hidden");
@@ -584,12 +749,15 @@ async function checkAnswer(){
     if(result.exact){
         // EXAKT → grün, auto-weiter nach kurzer Pause
         progress.correct++;sessionCorrect++;streak++;
+        progress.exactCorrect++;sessionCorrect++;
         if(streak>bestStreak)bestStreak=streak;
         document.getElementById("vokabel-input").className="correct";
         fb.className="feedback correct";
         fb.textContent=`Richtig! ${correctAnswer}`;
         card.classList.add("state-correct","pulse-green");
         if(window._confettiEnabled!==false)spawnConfetti();
+        // SM-2: perfekte Antwort = Quality 5
+        sm2Update(currentIndex,5);
         await dbPut("progress",{vocabIndex:currentIndex,...progress});
         await saveProgressFile();
         updateStats();
@@ -623,34 +791,32 @@ async function markCard(correct){
     progress.lastSeen=Date.now();
 
     if(correct){
-        // Als RICHTIG markieren
-        // Für Synonym/Fuzzy/Falsch: Progress noch nicht gespeichert → jetzt als correct
-        // Für Exakt: bereits in checkAnswer() gespeichert → nochmal+1 wäre falsch → nur wenn noch nicht gespeichert
-        // Einfach: wenn exakt → richtige antwort war's, korrigiere wenn nötig; wenn nicht exakt → jetzt correct speichern
+        const sm2q=lastResultType==="exact"?5:lastResultType==="fuzzy"?4:4;
+        sm2Update(currentIndex,sm2q);
         if(lastResultType==="exact"){
-            // Exakt: bereits gespeichert in checkAnswer(), kein weiteres correct nötig (User bestätigt nur)
-            // Nichts tun
-        }else{
-            // Synonym/Fuzzy/Wrong: progress noch nicht gespeichert → jetzt als correct speichern
+            progress.exactCorrect++;progress.correct++;sessionCorrect++;streak++;
+            if(streak>bestStreak)bestStreak=streak;
+        }else if(lastResultType==="synonym"||lastResultType==="fuzzy"){
             progress.correct++;sessionCorrect++;streak++;
             if(streak>bestStreak)bestStreak=streak;
         }
+        // lastResultType=null (direkt auf Button) = nur sessionCorrect++
         const fb=document.getElementById("feedback");
         fb.className="feedback correct";
         fb.textContent=lastResultType==="exact"?"Richtig!":
             lastResultType?"Als richtig markiert ✓":"Richtig bestätigt ✓";
         document.getElementById("card").className="card state-correct pulse-green";
     }else{
-        // Als FALSCH markieren → retry sofort
-        if(lastResultType==="exact"||lastAutoCorrect){
-            // War als correct markiert → korrigiere: -1 correct
+        // SM-2: falsch = Quality 1
+        sm2Update(currentIndex,1);
+        if(lastResultType==="exact"){
+            progress.exactCorrect--;progress.correct--;sessionCorrect--;
+        }else if(lastAutoCorrect){
             progress.correct--;sessionCorrect--;
         }
         progress.wrong++;sessionWrong++;streak=0;
-        // Nur retry wenn < 2x in dieser Session (verhindert Endlos-Schleife)
         const retries=sessionRetryCount[currentIndex]||0;
         if(retries<2){
-            // Wort ans Queue-Ende für sofortigen Retry
             queue.push(currentIndex);
             sessionRetryCount[currentIndex]=retries+1;
         }
@@ -702,6 +868,12 @@ async function renderDashboard(){
     document.getElementById("dash-best-streak").textContent=bestStreak;
     document.getElementById("dash-current-streak").textContent=streak;
 
+    // SM-2 Retention-Forecast
+    const fc=sm2Forecast();
+    document.getElementById("dash-due-today").textContent=fc.dueToday;
+    document.getElementById("dash-due-week").textContent=fc.dueWeek;
+    document.getElementById("dash-retention").textContent=fc.avgRetention+"%";
+
     // Category bars
     const catBars=document.getElementById("cat-bars");
     catBars.innerHTML="";
@@ -716,13 +888,41 @@ async function renderDashboard(){
 
     // Weak list
     const weakList=document.getElementById("weak-list");
-    const weakIndices=VOCAB.map((_,i)=>i).filter(i=>wrongRate(i)>0&&!isMastered(i)).sort((a,b)=>wrongRate(b)-wrongRate(a)).slice(0,10);
-    weakList.innerHTML=weakIndices.length?weakIndices.map(i=>`<span class="vocab-chip weak">${VOCAB[i].de} → ${VOCAB[i].en}</span>`).join(""):"<p style='color:var(--text3);font-size:.85rem'>Keine schwachen Vokabeln!</p>";
+    const weakIndices=VOCAB.map((_,i)=>i).filter(i=>{
+        const p=getProgress(i);
+        if(isMastered(i))return false;
+        if(wrongRate(i)>0)return true;
+        const exactAcc=p.exactCorrect/(p.exactCorrect+p.wrong+1);
+        return exactAcc<0.5;
+    }).sort((a,b)=>{
+        const pa=getProgress(a),pb=getProgress(b);
+        return wrongRate(b)-wrongRate(a);
+    }).slice(0,10);
+    weakList.innerHTML=weakIndices.length?weakIndices.map(i=>{
+        const mi=getMasteryInfo(i);
+        const progressBar=mi.totalCorrect+mi.wrong>0
+            ?`<div class="vocab-progress-bar"><div class="vocab-progress-fill" style="width:${Math.round(mi.exact/(mi.totalCorrect+mi.wrong)*100)}%"></div></div>`
+            :'';
+        const ratioColor=mi.ratio>=1.5?'var(--green)':mi.ratio>=1?'var(--yellow)':'var(--red)';
+        return`<div class="vocab-chip weak">
+            <div class="chip-top">${VOCAB[i].de} → ${VOCAB[i].en}</div>
+            <div class="chip-progress">${progressBar}
+                <span style="color:var(--green)">✓${mi.exact}</span>
+                <span style="color:var(--red)">✗${mi.wrong}</span>
+                <span style="color:${ratioColor}">${mi.ratio}×</span>
+                <span style="color:var(--text2)">EF${mi.EF.toFixed(1)}</span>
+            </div>
+        </div>`;
+    }).join(""):"<p style='color:var(--text3);font-size:.85rem'>Keine schwachen Vokabeln!</p>";
 
     // Mastered list
     const masteredList=document.getElementById("mastered-list");
     const masteredIndices=VOCAB.map((_,i)=>i).filter(i=>isMastered(i));
-    masteredList.innerHTML=masteredIndices.length?`<p style="color:var(--green);font-size:.85rem">${masteredIndices.length} von ${VOCAB.length} Vokabeln gemeistert!</p>`:`<p style="color:var(--text3);font-size:.85rem">Noch keine Vokabeln gemeistert.</p>`;
+    masteredList.innerHTML=masteredIndices.length?`<p style="color:var(--green);font-size:.85rem">${masteredIndices.length} von ${VOCAB.length} Vokabeln gemeistert!</p>
+        <div class="mastered-chips">${masteredIndices.slice(0,30).map(i=>{
+            const mi=getMasteryInfo(i);
+            return`<span class="vocab-chip mastered" title="✓${mi.exact} exakt | EF${mi.EF.toFixed(1)} | Intervall: ${mi.interval}d">${VOCAB[i].de} → ${VOCAB[i].en}</span>`;
+        }).join('')}</div>`:`<p style="color:var(--text3);font-size:.85rem">Noch keine Vokabeln gemeistert.</p>`;
 }
 
 // ============================================================
@@ -735,13 +935,17 @@ async function renderHistory(){
     const list=document.getElementById("history-list");
     list.innerHTML=allLogs.slice(0,100).map(e=>{
         const v=VOCAB[e.vocabIndex]||{de:"?",en:"?"};
+        const mi=getMasteryInfo(e.vocabIndex);
         const t=new Date(e.timestamp);
         const time=t.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
         const date=t.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"});
+        const mastered=mi.isMastered?'<span class="h-badge mastered">M</span>':'';
         return`<div class="history-entry">
             <span class="h-icon">${e.correct?"✅":"❌"}</span>
             <span class="h-word">${v.de}</span>
             <span class="h-answer">${e.expected}</span>
+            <span class="h-stats">✓${mi.exact} ✗${mi.wrong} ${mi.EF.toFixed(1)}</span>
+            ${mastered}
             <span class="h-time">${date} ${time}</span>
         </div>`;
     }).join("");
@@ -1094,6 +1298,9 @@ function showSessionModal(){
     document.getElementById("modal-wrong").textContent=sessionWrong;
     document.getElementById("modal-accuracy").textContent=acc+"%";
     document.getElementById("modal-streak").textContent=bestStreak;
+    const fc=sm2Forecast();
+    document.getElementById("modal-due-today").textContent=fc.dueToday;
+    document.getElementById("modal-retention").textContent=fc.avgRetention+"%";
 
     let icon="🎉",msg="";
     if(acc>=90){icon="🏆";msg="Exzellent! Du meisterst das Material!";}
@@ -1103,6 +1310,7 @@ function showSessionModal(){
     else if(acc>=50){icon="👍";msg="Guter Fortschritt, übe die schwachen Stellen nochmal.";}
 
     else{icon="📖";msg="Du bist auf dem Weg! Wiederholung ist der Schlüssel.";}
+    if(fc&&fc.dueToday>0)msg+=` ${fc.dueToday} Karten sind heute fällig.`;
 
     document.getElementById("modal-icon").textContent=icon;
     document.getElementById("modal-message").textContent=msg;
