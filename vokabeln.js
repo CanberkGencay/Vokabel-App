@@ -624,22 +624,26 @@ async function markCard(correct){
 
     if(correct){
         // Als RICHTIG markieren
-        // War es bereits als falsch markiert (auto-graded wrong)? Korrigiere
-        if(lastResultType===null){
-            // Exakte Antwort wurde auto-graded correct (progress bereits aktualisiert)
-            // Nichts extra tun
+        // Für Synonym/Fuzzy/Falsch: Progress noch nicht gespeichert → jetzt als correct
+        // Für Exakt: bereits in checkAnswer() gespeichert → nochmal+1 wäre falsch → nur wenn noch nicht gespeichert
+        // Einfach: wenn exakt → richtige antwort war's, korrigiere wenn nötig; wenn nicht exakt → jetzt correct speichern
+        if(lastResultType==="exact"){
+            // Exakt: bereits gespeichert in checkAnswer(), kein weiteres correct nötig (User bestätigt nur)
+            // Nichts tun
+        }else{
+            // Synonym/Fuzzy/Wrong: progress noch nicht gespeichert → jetzt als correct speichern
+            progress.correct++;sessionCorrect++;streak++;
+            if(streak>bestStreak)bestStreak=streak;
         }
-        // Für Synonym/Fuzzy: progress noch nicht gespeichert → jetzt als correct speichern
-        progress.correct++;sessionCorrect++;streak++;
-        if(streak>bestStreak)bestStreak=streak;
         const fb=document.getElementById("feedback");
         fb.className="feedback correct";
-        fb.textContent=lastResultType==="exact"?"Richtig!":`Als richtig markiert ✓`;
+        fb.textContent=lastResultType==="exact"?"Richtig!":
+            lastResultType?"Als richtig markiert ✓":"Richtig bestätigt ✓";
         document.getElementById("card").className="card state-correct pulse-green";
     }else{
         // Als FALSCH markieren → retry sofort
-        // Wenn auto-graded correct (exact): korrigiere wrong-Zähler, nicht correct
         if(lastResultType==="exact"||lastAutoCorrect){
+            // War als correct markiert → korrigiere: -1 correct
             progress.correct--;sessionCorrect--;
         }
         progress.wrong++;sessionWrong++;streak=0;
@@ -652,7 +656,7 @@ async function markCard(correct){
         }
         const fb=document.getElementById("feedback");
         fb.className="feedback wrong";
-        fb.textContent=`Falsch markiert ✗ → Retry kommt!`;
+        fb.textContent=`Falsch ✗ → Retry kommt!`;
         document.getElementById("card").className="card state-wrong pulse-red";
     }
 
