@@ -688,6 +688,7 @@ const exactText=p.exactCorrect>0?`✓${p.exactCorrect} exakt`:'';
 
     document.getElementById("vokabel-input").focus();
     answered=false;
+    cardMarked=false;
 }
 
 function showAnswer(showActions=true){
@@ -715,6 +716,7 @@ function showAnswer(showActions=true){
 // Letzter Auto-Grade Resultat (für Override durch Buttons)
 let lastAutoCorrect=false;
 let lastResultType=null;
+let cardMarked=false; // Guard: verhindert Doppelspeicherung bei Enter
 
 async function checkAnswer(){
     if(answered)return;
@@ -763,8 +765,8 @@ async function checkAnswer(){
         await dbPut("progress",{vocabIndex:currentIndex,...progress});
         await saveProgressFile();
         updateStats();
-        // Auto-weiter nach 600ms
-        setTimeout(()=>{if(answered)nextCard()},600);
+        // Auto-weiter nach 600ms (nur wenn User nicht schon selbst weiterging)
+        setTimeout(()=>{if(answered&&!cardMarked)nextCard()},600);
     }else if(result.correct){
         // SYNONYM oder FUZZY → gelb/grau, Pfeiltasten nötig
         const isFuzzy=result.type==="fuzzy";
@@ -1188,13 +1190,11 @@ document.getElementById("vokabel-input").addEventListener("keydown",e=>{
     if(e.key==="Enter"){
         e.preventDefault();
         if(answered){
-            // Enter = Auto-Mark + nächste Karte:
-            // Wenn noch kein Urteil (←/→) und die Antwort falsch war → auto-als-falsch-markieren
-            if(!lastResultType)return;
-            if(!lastAutoCorrect){
-                markCard(false); // Falsch markieren, dann nextCard
-            }else{
-                nextCard();
+            // Enter = Auto-Bestätigung + weiter
+            // ←/→ überspringen, direkt das Ergebnis übernehmen
+            if(lastResultType!==undefined){
+                cardMarked=true; // GUARD: Timer darf nicht auch nextCard() aufrufen
+                markCard(lastAutoCorrect);
             }
         }else{
             // Antwort prüfen
@@ -1204,6 +1204,7 @@ document.getElementById("vokabel-input").addEventListener("keydown",e=>{
     // Pfeiltasten: Links=Richtig, Rechts=Falsch
     if(answered&&(e.key==="ArrowLeft"||e.key==="ArrowRight")){
         e.preventDefault();
+        cardMarked=true;
         markCard(e.key==="ArrowLeft");
     }
 });
@@ -1348,8 +1349,8 @@ document.addEventListener("keydown",e=>{
         case'd':e.preventDefault();document.querySelector('[data-view="dashboard"]').click();break;
         case'h':e.preventDefault();document.querySelector('[data-view="history"]').click();break;
         case'q':e.preventDefault();document.querySelector('[data-view="quiz"]').click();break;
-        case'1':if(answered)markCard(true);break;
-        case'2':if(answered)markCard(false);break;
+        case'1':if(answered){cardMarked=true;markCard(true);}break;
+        case'2':if(answered){cardMarked=true;markCard(false);}break;
         case'escape':closeDrawer();closeSessionModal();break;
     }
 });
