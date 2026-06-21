@@ -568,57 +568,124 @@ function sm2Forecast(){
 }
 
 // ============================================================
-// QUEUE
+// QUEUE - ADAPTIVER PRIORITY ALGORITHMUS
 // ============================================================
+
+// Berechnet Prioritäts-Score (0-100) für eine Vokabel.
+// Höher = kommt früher dran.
+// Formel: Retry(90) > Due(80) > Weak(70-79) > New(60) > FastMastered(50-59) > Mastered(40-49) > Other(30-39)
+function getLearningPriority(i){
+    const p=getProgress(i);
+    const isRetry=sessionRetryCount[i]>0;
+    const isDue=sm2IsDue(i);
+    const isNew=p.reviewCount===0;
+    const isMasteredVocab=isMastered(i);
+    const wrongR=wrongRate(i);
+    const isWeak=wrongR>0&&!isMasteredVocab;
+    const exactAcc=p.exactCorrect/(p.exactCorrect+p.wrong+1);
+    const isFastMastered=p.exactCorrect>=2&&exactAcc>=0.5&&wrongR<0.33&&!isMasteredVocab;
+
+    if(isRetry)return 90; // Retry: höchste Priority (Session-Retry)
+    if(isDue)return 80+p.interval; // Due: SM-2 fällig, länger überfällig = höher
+    if(isNew)return 60; // Neue Vokabeln
+    if(isWeak){
+        // Schwache: Score basiert auf wrongRate + absolute wrong + noch-nicht-exakt
+        const score=Math.round(wrongR*80+Math.min(p.wrong*3,15)+Math.max(0,3-p.exactCorrect)*2);
+        return Math.min(79,50+score); // 50-79
+    }
+    if(isFastMastered)return 50+Math.round(exactAcc*20); // Fast-Gemeistert: 50-69
+    if(isMasteredVocab)return 40+Math.random()*10; // Gemeistert: 40-49 (random für variety)
+    return 30; // Sonstige
+}
+
+// Schwache-Karte? (wrongRate > 0 UND nicht mastered)
+// Für weak-mode Filter
+function isWeakVocab(i){
+    const p=getProgress(i);
+    return wrongRate(i)>0&&!isMastered(i);
+}
+
 function buildQueue(){
-    const due=sm2GetDue();  // SM-2: alle fälligen Karten
-    let newCards=[];
-    for(let i=0;i<VOCAB.length;i++){
+    const n=VOCAB.length;
+
+    // Phase 1: Sammle alle Karten nach Kategorie
+    const retry=[],due=[],newCards=[],weak=[],fastMastered=[],mastered=[],other=[];
+    for(let i=0;i<n;i++){
         const p=getProgress(i);
-        if(p.reviewCount===0&&!due.includes(i))newCards.push(i);
+        const priority=getLearningPriority(i);
+        if(priority>=90)retry.push(i);
+        else if(priority>=80)due.push(i);
+        else if(priority===60)newCards.push(i);
+        else if(priority>=50&&priority<80)weak.push(i);
+        else if(priority>=50)fastMastered.push(i);
+        else if(priority>=40)mastered.push(i);
+        else other.push(i);
     }
-    newCards.sort((a,b)=>{
-        const pa=getProgress(a),pb=getProgress(b);
-        const wrA=wrongRate(a),wrB=wrongRate(b);
-        if(Math.abs(wrA-wrB)>0.01)return wrB-wrA;
-        return totalAttempts(a)-totalAttempts(b);
-    });
+
+    // Phase 2: Sortiere jede Kategorie
+    // Retry: FIFO (Reihenfolge wie falsch beantwortet)
+    // Due: nach interval (am längsten überfällig zuerst)
+    due.sort((a,b)=>(getProgress(b).interval||1)-(getProgress(a).interval||1));
+    // New: Shuffle (keine Reihenfolge, alle lernen)
+    shuffle(newCards);
+    // Weak: nach Score (höchste wrongRate zuerst) = gleiche Sortierung wie Priority
+    weak.sort((a,b)=>getLearningPriority(b)-getLearningPriority(a));
+    // Fast-Mastered: Shuffle
+    shuffle(fastMastered);
+    // Mastered: Shuffle
+    shuffle(mastered);
+    // Other: Shuffle
+    shuffle(other);
+
+    // Phase 3: Interleave nach Mode
+    let queue=[];
+    const SESSION_SIZE=Math.min(n,266);
+
     if(currentMode==="smart"){
-        // Interleaved: wechsle zwischen due (Review) und newCards
-        // Priority: due cards first, dann neue sortiert nach wrongRate
-        const combined=[];
-        let d=0,n=0;
-        // Zuerst: alle due (sortiert nach interval aufsteigend = am längsten überfällig zuerst)
-        due.sort((a,b)=>{
-            const pa=getProgress(a),pb=getProgress(b);
-            return (pa.reviewDue||0)-(pb.reviewDue||0); // am längsten überfällig zuerst
-        });
-        // Dann: bis zu 15 neue Karten pro Session
-        const maxNew=Math.min(15,newCards.length);
-        const newSlice=newCards.slice(0,maxNew);
-        // Interleave: 3 due : 1 new (3:1 Ratio)
-        let dIdx=0,nIdx=0;
-        let batch=0;
-        while(dIdx<due.length||nIdx<newSlice.length){
-            // Alle 3 due ein new
-            for(let k=0;k<3&&dIdx<due.length;k++){
-                combined.push(due[dIdx++]);
-            }
-            if(nIdx<newSlice.length){
-                combined.push(newSlice[nIdx++]);
-            }
+        // Adaptives Interleaving: Retry→Due→Weak→New→FastMastered→Mastered
+        // Pattern: 1 Retry : 3 Due : 2 Weak : 3 New : 1 FastMastered
+        // WENN die Kategorie noch Karten hat, sonst nächste
+        let ri=0,di=0,wi=0,ni=0,fi=0,mi=0;
+        while(queue.length<SESSION_SIZE){
+            let added=false;
+            // 1 Retry
+            if(ri<retry.length){queue.push(retry[ri++]);added=true;}
+            // 3 Due
+            for(let k=0;k<3&&di<due.length&&queue.length<SESSION_SIZE;k++){queue.push(due[di++]);added=true;}
+            // 2 Weak
+            for(let k=0;k<2&&wi<weak.length&&queue.length<SESSION_SIZE;k++){queue.push(weak[wi++]);added=true;}
+            // 3 New
+            for(let k=0;k<3&&ni<newCards.length&&queue.length<SESSION_SIZE;k++){queue.push(newCards[ni++]);added=true;}
+            // 1 FastMastered
+            if(fi<fastMastered.length){queue.push(fastMastered[fi++]);added=true;}
+            // 1 Mastered (gelegentlich)
+            if(mi<mastered.length&&queue.length<SESSION_SIZE){queue.push(mastered[mi++]);added=true;}
+            if(!added)break;
         }
-        return combined;
+        // Falls noch Platz: other cards
+        while(queue.length<SESSION_SIZE&&other.length>0){
+            queue.push(other.shift());
+        }
     }else if(currentMode==="weak"){
-        return VOCAB.map((_,i)=>i).filter(i=>wrongRate(i)>0&&!isMastered(i)).sort((a,b)=>{
-            const pa=getProgress(a),pb=getProgress(b);
-            return (pa.reviewDue||0)-(pb.reviewDue||0);
-        });
+        // Weak mode: NUR schwache Karten, nach Priority sortiert
+        queue=[...weak,...newCards.slice(0,10)]; // auch ein paar neue zum Üben
     }else if(currentMode==="random"){
-        return shuffle([...due,...newCards]);
+        // Random: alles mischen
+        queue=[...retry,...due,...weak,...newCards,...fastMastered,...mastered,...other];
+        shuffle(queue);
+    }else{
+        // All: Alle Vokabeln in Priority-Reihenfolge
+        queue=[...retry,...due,...weak,...newCards,...fastMastered,...mastered,...other];
     }
-    // all: alle neuen + alle due (kein Filter)
-    return shuffle([...newCards,...due]);
+
+    // Deduplizierung: Jede Karte max 1× in Queue
+    const seen=new Set();
+    queue=queue.filter(idx=>{
+        if(seen.has(idx))return false;
+        seen.add(idx);return true;
+    });
+
+    return queue;
 }
 
 // ============================================================
@@ -852,6 +919,7 @@ function nextCard(){
 async function renderDashboard(){
     let mastered=0,totalCorrect=0,totalWrong=0;
     const catStats={};
+    let newCount=0,weakCount=0,learningCount=0;
 
     for(let i=0;i<VOCAB.length;i++){
         const v=VOCAB[i];
@@ -863,6 +931,10 @@ async function renderDashboard(){
         if(isMastered(i)){catStats[v.cat].mastered++;mastered++}
         totalCorrect+=p.correct;
         totalWrong+=p.wrong;
+        if(p.reviewCount===0)newCount++;
+        else if(isMastered(i)){}
+        else if(wrongRate(i)>0)weakCount++;
+        else learningCount++;
     }
 
     document.getElementById("dash-total-correct").textContent=totalCorrect;
@@ -878,6 +950,17 @@ async function renderDashboard(){
     document.getElementById("dash-due-week").textContent=fc.dueWeek;
     document.getElementById("dash-retention").textContent=fc.avgRetention+"%";
 
+    // Learning Progress Summary
+    const lpsEl=document.getElementById("learning-summary");
+    if(lpsEl){
+        lpsEl.innerHTML=`<div class="lps-row">
+            <span class="lps-badge" style="background:var(--surface2);color:var(--text2)">🆕 ${newCount} Neu</span>
+            <span class="lps-badge" style="background:var(--surface2);color:var(--yellow)">📚 ${learningCount} Lernend</span>
+            <span class="lps-badge" style="background:var(--surface2);color:var(--amber)">⚠️ ${weakCount} Schwach</span>
+            <span class="lps-badge" style="background:var(--surface2);color:var(--green)">✅ ${mastered} Gemeistert</span>
+        </div>`;
+    }
+
     // Category bars
     const catBars=document.getElementById("cat-bars");
     catBars.innerHTML="";
@@ -890,7 +973,7 @@ async function renderDashboard(){
         </div>`;
     }
 
-    // Weak list
+    // Weak list - ALLE schwachen nach Priority sortiert, max 30
     const weakList=document.getElementById("weak-list");
     const weakIndices=VOCAB.map((_,i)=>i).filter(i=>{
         const p=getProgress(i);
@@ -898,32 +981,33 @@ async function renderDashboard(){
         if(wrongRate(i)>0)return true;
         const exactAcc=p.exactCorrect/(p.exactCorrect+p.wrong+1);
         return exactAcc<0.5;
-    }).sort((a,b)=>{
-        const pa=getProgress(a),pb=getProgress(b);
-        return wrongRate(b)-wrongRate(a);
-    }).slice(0,10);
-    weakList.innerHTML=weakIndices.length?weakIndices.map(i=>{
-        const mi=getMasteryInfo(i);
-        const progressBar=mi.totalCorrect+mi.wrong>0
-            ?`<div class="vocab-progress-bar"><div class="vocab-progress-fill" style="width:${Math.round(mi.exact/(mi.totalCorrect+mi.wrong)*100)}%"></div></div>`
-            :'';
-        const ratioColor=mi.ratio>=1.5?'var(--green)':mi.ratio>=1?'var(--yellow)':'var(--red)';
-        return`<div class="vocab-chip weak">
-            <div class="chip-top">${VOCAB[i].de} → ${VOCAB[i].en}</div>
-            <div class="chip-progress">${progressBar}
-                <span style="color:var(--green)">✓${mi.exact}</span>
-                <span style="color:var(--red)">✗${mi.wrong}</span>
-                <span style="color:${ratioColor}">${mi.ratio}×</span>
-                <span style="color:var(--text2)">EF${mi.EF.toFixed(1)}</span>
-            </div>
-        </div>`;
-    }).join(""):"<p style='color:var(--text3);font-size:.85rem'>Keine schwachen Vokabeln!</p>";
+    }).sort((a,b)=>getLearningPriority(b)-getLearningPriority(a)).slice(0,30);
+    weakList.innerHTML=weakIndices.length?`<p style="color:var(--amber);font-size:.8rem;margin-bottom:8px">${weakIndices.length} Schwache Vokabeln (nach Lern-Priority):</p>
+        ${weakIndices.map(i=>{
+            const mi=getMasteryInfo(i);
+            const priority=getLearningPriority(i);
+            const icon=priority>=80?'🔥':priority>=50?'⚠️':'📝';
+            const progressBar=mi.totalCorrect+mi.wrong>0
+                ?`<div class="vocab-progress-bar"><div class="vocab-progress-fill" style="width:${Math.round(mi.exact/(mi.totalCorrect+mi.wrong)*100)}%"></div></div>`
+                :'';
+            const ratioColor=mi.ratio>=1.5?'var(--green)':mi.ratio>=1?'var(--yellow)':'var(--red)';
+            const ratioDisplay=mi.ratio===Infinity?'∞':mi.ratio;
+            return`<div class="vocab-chip weak">
+                <div class="chip-top">${icon} ${VOCAB[i].de} → ${VOCAB[i].en}</div>
+                <div class="chip-progress">${progressBar}
+                    <span style="color:var(--green)">✓${mi.exact}</span>
+                    <span style="color:var(--red)">✗${mi.wrong}</span>
+                    <span style="color:${ratioColor}">${ratioDisplay}×</span>
+                    <span style="color:var(--text2)">EF${mi.EF.toFixed(1)}</span>
+                </div>
+            </div>`;
+        }).join('')}`:"<p style='color:var(--text3);font-size:.85rem'>Keine schwachen Vokabeln! 🎉</p>";
 
     // Mastered list
     const masteredList=document.getElementById("mastered-list");
     const masteredIndices=VOCAB.map((_,i)=>i).filter(i=>isMastered(i));
     masteredList.innerHTML=masteredIndices.length?`<p style="color:var(--green);font-size:.85rem">${masteredIndices.length} von ${VOCAB.length} Vokabeln gemeistert!</p>
-        <div class="mastered-chips">${masteredIndices.slice(0,30).map(i=>{
+        <div class="mastered-chips">${masteredIndices.slice(0,50).map(i=>{
             const mi=getMasteryInfo(i);
             return`<span class="vocab-chip mastered" title="✓${mi.exact} exakt | EF${mi.EF.toFixed(1)} | Intervall: ${mi.interval}d">${VOCAB[i].de} → ${VOCAB[i].en}</span>`;
         }).join('')}</div>`:`<p style="color:var(--text3);font-size:.85rem">Noch keine Vokabeln gemeistert.</p>`;
