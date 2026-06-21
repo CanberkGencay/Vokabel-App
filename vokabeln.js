@@ -642,29 +642,23 @@ function buildQueue(){
     const SESSION_SIZE=Math.min(n,266);
 
     if(currentMode==="smart"){
-        // Adaptives Interleaving: Retry→Due→Weak→New→FastMastered→Mastered
-        // Pattern: 1 Retry : 3 Due : 2 Weak : 3 New : 1 FastMastered
-        // WENN die Kategorie noch Karten hat, sonst nächste
-        let ri=0,di=0,wi=0,ni=0,fi=0,mi=0;
+        // SMART: NUR Retry + Due + Weak + New
+        // Gemeisterte und FastMastered sind NICHT in Smart (die will man nur in "Alle" machen)
+        // Pattern: 1 Retry : 3 Due : 2 Weak : 3 New
+        let ri=0,di=0,wi=0,ni=0;
         while(queue.length<SESSION_SIZE){
             let added=false;
-            // 1 Retry
             if(ri<retry.length){queue.push(retry[ri++]);added=true;}
-            // 3 Due
             for(let k=0;k<3&&di<due.length&&queue.length<SESSION_SIZE;k++){queue.push(due[di++]);added=true;}
-            // 2 Weak
             for(let k=0;k<2&&wi<weak.length&&queue.length<SESSION_SIZE;k++){queue.push(weak[wi++]);added=true;}
-            // 3 New
             for(let k=0;k<3&&ni<newCards.length&&queue.length<SESSION_SIZE;k++){queue.push(newCards[ni++]);added=true;}
-            // 1 FastMastered
-            if(fi<fastMastered.length){queue.push(fastMastered[fi++]);added=true;}
-            // 1 Mastered (gelegentlich)
-            if(mi<mastered.length&&queue.length<SESSION_SIZE){queue.push(mastered[mi++]);added=true;}
             if(!added)break;
         }
-        // Falls noch Platz: other cards
-        while(queue.length<SESSION_SIZE&&other.length>0){
-            queue.push(other.shift());
+        // Falls nicht genug Karten in diesen Kategorien: andere (nicht-mastered) Karten
+        const others= VOCAB.map((_,i)=>i).filter(i=>!isMastered(i)&&!retry.includes(i)&&!due.includes(i)&&!weak.includes(i)&&!newCards.includes(i));
+        shuffle(others);
+        while(queue.length<SESSION_SIZE&&others.length>0){
+            queue.push(others.shift());
         }
     }else if(currentMode==="weak"){
         // Weak mode: NUR schwache Karten, nach Priority sortiert
@@ -674,8 +668,9 @@ function buildQueue(){
         queue=[...retry,...due,...weak,...newCards,...fastMastered,...mastered,...other];
         shuffle(queue);
     }else{
-        // All: Alle Vokabeln in Priority-Reihenfolge
+        // ALL: Alle Vokabeln in guter Mischung (Retry+D弱+Weak+New zuerst, dann mastered mit etwas variety)
         queue=[...retry,...due,...weak,...newCards,...fastMastered,...mastered,...other];
+        shuffle(queue);
     }
 
     // Deduplizierung: Jede Karte max 1× in Queue
@@ -741,7 +736,19 @@ const exactText=p.exactCorrect>0?`✓${p.exactCorrect} exakt`:'';
     const nextText=daysUntilReview<=0?"Fällig!":`Review in ${daysUntilReview}d`;
     const attemptTextFull=p.exactCorrect+p.wrong>0?`${attemptText} | EF ${p.easinessFactor.toFixed(1)} | ${nextText}`:attemptText;
     document.getElementById("card-attempts").textContent=attemptTextFull;
-    document.getElementById("card-counter").textContent=`${queuePos+1} / ${queue.length}`;
+    // Queue-Info: Retry/Due/Weak/New Counts
+    let retryCnt=0,dueCnt=0,weakCnt=0,newCnt=0;
+    for(const idx of queue){
+        const pr=sessionRetryCount[idx]||0;
+        if(pr>0)retryCnt++;
+        else if(sm2IsDue(idx))dueCnt++;
+        else if(isWeakVocab(idx))weakCnt++;
+        else if(getProgress(idx).reviewCount===0)newCnt++;
+    }
+    document.getElementById("card-counter").textContent=
+        `${queuePos+1}/${queue.length}`+
+        ` | R:${retryCnt} D:${dueCnt} W:${weakCnt} N:${newCnt}`;
+    document.getElementById("card-counter").title="Retry | Due | Weak | New";
 
     document.getElementById("card-back").classList.add("hidden");
     document.getElementById("feedback").classList.add("hidden");
