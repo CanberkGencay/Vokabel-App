@@ -276,7 +276,54 @@ const VOCAB=[
 {de:"Betriebsurlaub",en:"holiday shutdown",syn:"mandatory company closure",exp:"A period when the entire company or factory closes down, and all staff must take vacation.",cat:"Teil 12: Arbeitszeitmodelle"},
 {de:"Bürotage / Präsenztage",en:"in-office days",syn:"on-site days / mandatory office days",exp:"The specific days an employee is required to physically be in the company building.",cat:"Teil 12: Arbeitszeitmodelle"},
 {de:"Personalfluktuation",en:"staff turnover / employee turnover",syn:"churn rate / attrition",exp:"The rate at which employees leave a workforce and are replaced.",cat:"Teil 12: Arbeitszeitmodelle"},
-{de:"unterbesetzt (sein)",en:"to be short-staffed",syn:"to be understaffed / shorthanded",exp:"Having fewer employees than are needed to do the work properly.",cat:"Teil 12: Arbeitszeitmodelle"}
+{de:"unterbesetzt (sein)",en:"to be short-staffed",syn:"to be understaffed / shorthanded",exp:"Having fewer employees than are needed to do the work properly.",cat:"Teil 12: Arbeitszeitmodelle"},
+
+// ===== PHRASAL VERBS (37 Einträge) =====
+{de:"komplett beschäftigt sein mit",en:"be wrapped up with",en_syn:"be very busy with",example:"I am wrapped up with the quarterly report.",cat:"Phrasal Verbs"},
+{de:"ansprechen / erwähnen",en:"bring up",en_syn:"mention",example:"I want to bring up an idea in the meeting.",cat:"Phrasal Verbs"},
+{de:"absagen",en:"call off",en_syn:"cancel",example:"We had to call off the meeting.",cat:"Phrasal Verbs"},
+{de:"weitermachen / fortfahren",en:"carry on",en_syn:"continue",example:"Despite the problems, they carried on working.",cat:"Phrasal Verbs"},
+{de:"etwas nachholen",en:"catch up on",en_syn:"do missed work",example:"I need to catch up on university work.",cat:"Phrasal Verbs"},
+{de:"ausprobieren / sich anschauen",en:"check out",en_syn:"visit / try",example:"We should check out that new cafe.",cat:"Phrasal Verbs"},
+{de:"ausraumen",en:"clear out",en_syn:"empty / remove things from",example:"I need to clear out my car.",cat:"Phrasal Verbs"},
+{de:"eintreffen / hereinkommen",en:"come in",en_syn:"arrive",example:"Several new orders came in this morning.",cat:"Phrasal Verbs"},
+{de:"auslagern",en:"contract out",en_syn:"outsource",example:"They contracted out IT support.",cat:"Phrasal Verbs"},
+{de:"reduzieren / einsparen",en:"cut back on",en_syn:"reduce",example:"The company wants to cut back on expenses.",cat:"Phrasal Verbs"},
+{de:"jemanden vertreten",en:"fill in for",en_syn:"replace / substitute",example:"Can you fill in for me tomorrow?",cat:"Phrasal Verbs"},
+{de:"sich gut verstehen mit",en:"get along with",en_syn:"have a good relationship with",example:"I get along with my colleagues.",cat:"Phrasal Verbs"},
+{de:"sich erholen von",en:"get over",en_syn:"recover from",example:"It took him weeks to get over the flu.",cat:"Phrasal Verbs"},
+{de:"durchgehen / besprechen",en:"go over",en_syn:"review / discuss",example:"Let's go over the details.",cat:"Phrasal Verbs"},
+{de:"aufwachsen",en:"grow up",en_syn:"spend childhood / be raised",example:"She grew up in a small town.",cat:"Phrasal Verbs"},
+{de:"Zeit verbringen / abhangen",en:"hang out",en_syn:"spend time together",example:"We sometimes hang out after work.",cat:"Phrasal Verbs"},
+{de:"warten / kurz dranbleiben",en:"hold on",en_syn:"wait",example:"Hold on a second, please.",cat:"Phrasal Verbs"},
+{de:"sich kummern um / betreuen",en:"look after",en_syn:"take care of / manage",example:"She looks after the project.",cat:"Phrasal Verbs"},
+{de:"untersuchen / sich ansehen",en:"look into",en_syn:"investigate",example:"HR is looking into the complaint.",cat:"Phrasal Verbs"},
+{de:"sich treffen",en:"meet up",en_syn:"meet",example:"We met up for a coffee.",cat:"Phrasal Verbs"},
+{de:"Essen bestellen",en:"order in",en_syn:"order food for delivery",example:"We decided to order in.",cat:"Phrasal Verbs"},
+{de:"sterben / versterben",en:"pass away",en_syn:"die",example:"The CEO passed away unexpectedly.",cat:"Phrasal Verbs"},
+{de:"ohnmachtig werden",en:"pass out",en_syn:"faint",example:"The intern passed out during the meeting.",cat:"Phrasal Verbs"},
+{de:"holen / kaufen / abholen",en:"pick up",en_syn:"buy / get / collect",example:"Can you pick up some printer paper?",cat:"Phrasal Verbs"},
+{de:"wegraumen / verstauen",en:"put away",en_syn:"store",example:"Please put away the files.",cat:"Phrasal Verbs"},
+{de:"verschieben",en:"put off",en_syn:"postpone",example:"Let's put off the presentation until next week.",cat:"Phrasal Verbs"},
+{de:"tolerieren / ertragen",en:"put up with",en_syn:"tolerate",example:"I cannot put up with the noise.",cat:"Phrasal Verbs"},
+{de:"zufallig treffen",en:"run into",en_syn:"meet unexpectedly",example:"I ran into my professor at the gym.",cat:"Phrasal Verbs"},
+{de:"vereinbaren / ansetzen",en:"set up",en_syn:"schedule / arrange",example:"I will set up a meeting with the IT team.",cat:"Phrasal Verbs"},
+{de:"schlieBen / Betrieb einstellen",en:"shut down",en_syn:"close / cease operations",example:"The company had to shut down its Berlin office.",cat:"Phrasal Verbs"},
+{de:"ausschlafen",en:"sleep in",en_syn:"sleep longer than usual",example:"I slept in because I was tired.",cat:"Phrasal Verbs"},
+{de:"abheben / abfliegen",en:"take off",en_syn:"depart",example:"The plane took off on time.",cat:"Phrasal Verbs"},
+{de:"ubernehmen / annehmen",en:"take on",en_syn:"accept / undertake",example:"She decided to take on an extra project.",cat:"Phrasal Verbs"},
+{de:"wegwerfen / entsorgen",en:"throw away",en_syn:"discard / dispose of",example:"We should throw away these outdated brochures.",cat:"Phrasal Verbs"},
+{de:"aufraumen",en:"tidy up",en_syn:"clean / organize",example:"I tidied up my desk before studying.",cat:"Phrasal Verbs"},
+{de:"ablehnen",en:"turn down",en_syn:"reject",example:"They turned down the offer.",cat:"Phrasal Verbs"},
+{de:"runterdrehen / reduzieren",en:"turn down",en_syn:"reduce / lower",example:"Could you turn down the heating?",cat:"Phrasal Verbs"},
+
+// ===== PHRASAL COLLOCATIONS (Aufgabe 21, 6 Einträge) =====
+{de:"ein Projekt betreuen / managen",en:"look after a project",exp:"look after = sich kummern um",cat:"Phrasal Verbs"},
+{de:"ein Angebot ablehnen",en:"turn down an offer",exp:"turn down = ablehnen",cat:"Phrasal Verbs"},
+{de:"Kosten reduzieren",en:"cut back on expenses",exp:"cut back on = reduzieren",cat:"Phrasal Verbs"},
+{de:"unnötige Ausgaben untersuchen",en:"look into unnecessary spending",exp:"look into = untersuchen",cat:"Phrasal Verbs"},
+{de:"jemanden zufällig treffen",en:"run into someone",exp:"run into = zufällig treffen",cat:"Phrasal Verbs"},
+{de:"etwas ertragen / tolerieren",en:"put up with something",exp:"put up with = ertragen",cat:"Phrasal Verbs"}
 ];
 
 // ============================================================
@@ -353,6 +400,7 @@ let sessionLog=[];   // [{vocabIndex, input, correct, expected, timestamp}]
 let currentMode="smart";
 let currentDirection="de-en";
 let currentIndex=0;
+let currentType="de-en";
 let queuePos=0;
 let answered=false;
 let queue=[];
@@ -367,6 +415,39 @@ let sessionRetryCount={};  // vocabIndex → wie oft in dieser Session als falsc
 // HELPERS
 // ============================================================
 function norm(s){return s.toLowerCase().replace(/[.,!?;:'"()\/\-]/g,"").replace(/\s+/g," ").trim()}
+
+// Wort-Stamm für Konjugationserkennung (z.B. "turned" → "turn")
+function stem(w){
+    const irr={took:"take",taken:"take",takes:"take",taking:"take",grew:"grow",grown:"grow",grows:"grow",growing:"grow",slept:"sleep",sleeps:"sleep",sleeping:"sleep",met:"meet",meets:"meet",meeting:"meet",ran:"run",runs:"run",running:"run",came:"come",comes:"come",coming:"come",threw:"throw",thrown:"throw",throws:"throw",throwing:"throw",held:"hold",holds:"hold",holding:"hold",cut:"cut",cuts:"cut",cutting:"cut",set:"set",sets:"set",setting:"set",put:"put",puts:"put",putting:"put",shut:"shut",shuts:"shut",shutting:"shut"};
+    const lw=w.toLowerCase();
+    if(irr[lw])return irr[lw];
+    if(lw.endsWith("ied")&&lw.length>4)return lw.slice(0,-3)+"y";
+    if(lw.endsWith("ing")&&lw.length>5)return lw.slice(0,-3);
+    if(lw.endsWith("ed")&&lw.length>4)return lw.slice(0,-2);
+    if(lw.endsWith("s")&&!lw.endsWith("ss")&&lw.length>3)return lw.slice(0,-1);
+    return lw;
+}
+
+// Erzeugt Lückentext aus Beispielsatz + phrasal verb (en)
+// "They turned down the offer." + "turn down" → "They _____ the offer."
+function generateCloze(example,en){
+    if(!example||!en)return"";
+    const enWords=en.split(" ");
+    const exWords=example.split(" ");
+    for(let i=0;i<=exWords.length-enWords.length;i++){
+        let match=true;
+        for(let j=0;j<enWords.length;j++){
+            const exW=exWords[i+j].replace(/[.,!?;:'"()]/g,"");
+            if(stem(exW)!==stem(enWords[j])){match=false;break}
+        }
+        if(match){
+            exWords.splice(i,enWords.length,"_____");
+            return exWords.join(" ");
+        }
+    }
+    // Fallback: prepend blank
+    return "_____ "+example;
+}
 
 // Levenshtein Distance für Fuzzy Matching
 function levenshtein(a,b){
@@ -568,12 +649,40 @@ function sm2Forecast(){
 }
 
 // ============================================================
+// FRAGETYPEN (Question Types)
+// ============================================================
+
+// Verfügbare Fragetypen für eine Vokabel
+function getAvailableTypes(i){
+    const v=VOCAB[i];
+    const types=["de-en","en-de"];
+    if(v.example)types.push("cloze");
+    if(v.en_syn){types.push("pv-verb");types.push("verb-pv")}
+    return types;
+}
+
+// Wählt Fragetyp für aktuelle Karte + Modus
+function getQuestionType(i,mode){
+    const types=getAvailableTypes(i);
+    if(mode==="cloze")return types.includes("cloze")?"cloze":types[0];
+    if(mode==="pv-verb"){
+        const pvTypes=types.filter(t=>t==="pv-verb"||t==="verb-pv");
+        return pvTypes.length>0?pvTypes[Math.floor(Math.random()*pvTypes.length)]:"de-en";
+    }
+    // Smart/All/Random/Weak: Richtung der direction pills beachten
+    if(currentDirection==="de-en")return types.includes("de-en")?"de-en":types[0];
+    if(currentDirection==="en-de")return types.includes("en-de")?"en-de":types[0];
+    // mixed: zufällig aus allen verfügbaren
+    return types[Math.floor(Math.random()*types.length)];
+}
+
+// ============================================================
 // QUEUE - ADAPTIVER PRIORITY ALGORITHMUS
 // ============================================================
 
 // Berechnet Prioritäts-Score (0-100) für eine Vokabel.
 // Höher = kommt früher dran.
-// Formel: Retry(90) > Due(80) > Weak(70-79) > New(60) > FastMastered(50-59) > Mastered(40-49) > Other(30-39)
+// Kategorien: Retry(90) > Due(80-95) > Weak(50-79) > New(60) > Other(30-39) > Mastered(40-49)
 function getLearningPriority(i){
     const p=getProgress(i);
     const isRetry=sessionRetryCount[i]>0;
@@ -582,69 +691,63 @@ function getLearningPriority(i){
     const isMasteredVocab=isMastered(i);
     const wrongR=wrongRate(i);
     const isWeak=wrongR>0&&!isMasteredVocab;
-    const exactAcc=p.exactCorrect/(p.exactCorrect+p.wrong+1);
-    const isFastMastered=p.exactCorrect>=2&&exactAcc>=0.5&&wrongR<0.33&&!isMasteredVocab;
 
-    if(isRetry)return 90; // Retry: höchste Priority (Session-Retry)
-    if(isDue)return 80+p.interval; // Due: SM-2 fällig, länger überfällig = höher
+    if(isRetry)return 90; // Retry: höchste Priority (Session-Falschmarkierungen)
+    if(isDue)return 80+Math.min(p.interval||1,15); // Due: SM-2 fällig, länger überfällig = höher
     if(isNew)return 60; // Neue Vokabeln
     if(isWeak){
         // Schwache: Score basiert auf wrongRate + absolute wrong + noch-nicht-exakt
         const score=Math.round(wrongR*80+Math.min(p.wrong*3,15)+Math.max(0,3-p.exactCorrect)*2);
         return Math.min(79,50+score); // 50-79
     }
-    if(isFastMastered)return 50+Math.round(exactAcc*20); // Fast-Gemeistert: 50-69
     if(isMasteredVocab)return 40+Math.random()*10; // Gemeistert: 40-49 (random für variety)
-    return 30; // Sonstige
+    return 30; // Learning/Sonstige (richtig aber noch nicht mastered)
 }
 
 // Schwache-Karte? (wrongRate > 0 UND nicht mastered)
-// Für weak-mode Filter
-function isWeakVocab(i){
-    const p=getProgress(i);
-    return wrongRate(i)>0&&!isMastered(i);
-}
+function isWeakVocab(i){return wrongRate(i)>0&&!isMastered(i)}
 
 function buildQueue(){
     const n=VOCAB.length;
 
-    // Phase 1: Sammle alle Karten nach Kategorie
-    const retry=[],due=[],newCards=[],weak=[],fastMastered=[],mastered=[],other=[];
-    for(let i=0;i<n;i++){
-        const p=getProgress(i);
+    // Phase 1: Filtere nach Modus
+    let indices=[];
+    if(currentMode==="cloze"){
+        // Cloze-Modus: nur Karten mit example
+        indices=VOCAB.map((_,i)=>i).filter(i=>VOCAB[i].example);
+    }else if(currentMode==="pv-verb"){
+        // PV-Verb Modus: nur Karten mit en_syn
+        indices=VOCAB.map((_,i)=>i).filter(i=>VOCAB[i].en_syn);
+    }else{
+        // Alle anderen Modi: alle Karten
+        indices=VOCAB.map((_,i)=>i);
+    }
+
+    // Phase 2: Kategorisiere gefilterte Karten
+    const retry=[],due=[],newCards=[],weak=[],mastered=[],other=[];
+    for(const i of indices){
         const priority=getLearningPriority(i);
         if(priority>=90)retry.push(i);
         else if(priority>=80)due.push(i);
         else if(priority===60)newCards.push(i);
         else if(priority>=50&&priority<80)weak.push(i);
-        else if(priority>=50)fastMastered.push(i);
-        else if(priority>=40)mastered.push(i);
+        else if(priority>=40&&priority<50)mastered.push(i);
         else other.push(i);
     }
 
-    // Phase 2: Sortiere jede Kategorie
-    // Retry: FIFO (Reihenfolge wie falsch beantwortet)
-    // Due: nach interval (am längsten überfällig zuerst)
+    // Phase 3: Sortiere jede Kategorie
     due.sort((a,b)=>(getProgress(b).interval||1)-(getProgress(a).interval||1));
-    // New: Shuffle (keine Reihenfolge, alle lernen)
     shuffle(newCards);
-    // Weak: nach Score (höchste wrongRate zuerst) = gleiche Sortierung wie Priority
     weak.sort((a,b)=>getLearningPriority(b)-getLearningPriority(a));
-    // Fast-Mastered: Shuffle
-    shuffle(fastMastered);
-    // Mastered: Shuffle
     shuffle(mastered);
-    // Other: Shuffle
     shuffle(other);
 
-    // Phase 3: Interleave nach Mode
+    // Phase 4: Interleave nach Mode
     let queue=[];
     const SESSION_SIZE=Math.min(n,266);
 
-    if(currentMode==="smart"){
-        // SMART: NUR Retry + Due + Weak + New
-        // Gemeisterte und FastMastered sind NICHT in Smart (die will man nur in "Alle" machen)
-        // Pattern: 1 Retry : 3 Due : 2 Weak : 3 New
+    if(currentMode==="smart"||currentMode==="cloze"||currentMode==="pv-verb"){
+        // SMART / CLOZE / PV-VERB: Priority-basiertes Interleaving
         let ri=0,di=0,wi=0,ni=0;
         while(queue.length<SESSION_SIZE){
             let added=false;
@@ -654,26 +757,25 @@ function buildQueue(){
             for(let k=0;k<3&&ni<newCards.length&&queue.length<SESSION_SIZE;k++){queue.push(newCards[ni++]);added=true;}
             if(!added)break;
         }
-        // Falls nicht genug Karten in diesen Kategorien: andere (nicht-mastered) Karten
-        const others= VOCAB.map((_,i)=>i).filter(i=>!isMastered(i)&&!retry.includes(i)&&!due.includes(i)&&!weak.includes(i)&&!newCards.includes(i));
-        shuffle(others);
-        while(queue.length<SESSION_SIZE&&others.length>0){
-            queue.push(others.shift());
+        const maxOthers=Math.floor(SESSION_SIZE*0.3);
+        const othersNonMastered=other.filter(i=>!isMastered(i));
+        shuffle(othersNonMastered);
+        let oi=0;
+        while(queue.length<SESSION_SIZE&&oi<othersNonMastered.length&&oi<maxOthers){
+            queue.push(othersNonMastered[oi++]);
         }
     }else if(currentMode==="weak"){
-        // Weak mode: NUR schwache Karten, nach Priority sortiert
-        queue=[...weak,...newCards.slice(0,10)]; // auch ein paar neue zum Üben
+        queue=[...weak,...newCards.slice(0,20)];
     }else if(currentMode==="random"){
-        // Random: alles mischen
-        queue=[...retry,...due,...weak,...newCards,...fastMastered,...mastered,...other];
+        queue=[...retry,...due,...weak,...newCards,...other,...mastered];
         shuffle(queue);
     }else{
-        // ALL: Alle Vokabeln in guter Mischung (Retry+D弱+Weak+New zuerst, dann mastered mit etwas variety)
-        queue=[...retry,...due,...weak,...newCards,...fastMastered,...mastered,...other];
+        // ALL
+        queue=[...retry,...due,...weak,...newCards,...other,...mastered];
         shuffle(queue);
     }
 
-    // Deduplizierung: Jede Karte max 1× in Queue
+    // Deduplizierung
     const seen=new Set();
     queue=queue.filter(idx=>{
         if(seen.has(idx))return false;
@@ -720,13 +822,41 @@ function updateStats(){
 function showCard(){
     if(queuePos>=queue.length){queue=buildQueue();queuePos=0}
     currentIndex=queue[queuePos];
+    currentType=getQuestionType(currentIndex,currentMode);
     const v=VOCAB[currentIndex];
-    const dir=currentDirection==="mixed"
-        ?(Math.random()<0.5?"de-en":"en-de"):currentDirection;
-    const isDE=dir==="de-en";
 
-    document.getElementById("question-label").textContent=isDE?"Was ist die englische Übersetzung für:":"Was ist die deutsche Übersetzung für:";
-    document.getElementById("question-text").textContent=isDE?v.de:v.en;
+    let label,question;
+    switch(currentType){
+        case"de-en":
+            label="Wie heißt das auf Englisch?";
+            question=v.de;
+            break;
+        case"en-de":
+            label="Wie heißt das auf Deutsch?";
+            question=v.en;
+            break;
+        case"cloze":
+            label="Ergänze die Lücke (Phrasal Verb):";
+            question=generateCloze(v.example,v.en)+"\n\n🇩🇪 "+v.de;
+            break;
+        case"pv-verb":
+            label="Welches normale Verb passt zu:";
+            question=v.en;
+            break;
+        case"verb-pv":
+            label="Welches Phrasal Verb passt zu:";
+            question=v.en_syn||v.en;
+            break;
+        default:
+            label="Wie heißt das?";
+            question=v.de;
+    }
+
+    document.getElementById("question-label").textContent=label;
+    document.getElementById("question-text").textContent=question;
+    document.getElementById("question-text").title=currentType==="cloze"?"Lückentext – tippe das fehlende Phrasal Verb":currentType;
+    const placeholders={deen:"Englische Übersetzung",ende:"Deutsche Übersetzung",cloze:"Phrasal Verb eintragen","pv-verb":"z.B. postpone","verb-pv":"z.B. put off"};
+    document.getElementById("vokabel-input").placeholder=placeholders[currentType]||"Deine Antwort";
     document.getElementById("card-category").textContent=v.cat;
 
     const p=getProgress(currentIndex);
@@ -735,8 +865,9 @@ const exactText=p.exactCorrect>0?`✓${p.exactCorrect} exakt`:'';
     const daysUntilReview=p.exactCorrect+p.wrong>0?Math.max(0,Math.ceil((p.reviewDue-Date.now())/(24*60*60*1000))):0;
     const nextText=daysUntilReview<=0?"Fällig!":`Review in ${daysUntilReview}d`;
     const attemptTextFull=p.exactCorrect+p.wrong>0?`${attemptText} | EF ${p.easinessFactor.toFixed(1)} | ${nextText}`:attemptText;
-    document.getElementById("card-attempts").textContent=attemptTextFull;
-    // Queue-Info: Retry/Due/Weak/New Counts
+    const typeTags={deen:"📝",en:"📝",cloze:"🔤",pverbose:"🔗",verb:"🔗"};
+    document.getElementById("card-attempts").textContent=attemptTextFull+(currentType!=="de-en"&&currentType!=="en-de"?` | ${currentType}`:"");
+    // Queue-Info
     let retryCnt=0,dueCnt=0,weakCnt=0,newCnt=0;
     for(const idx of queue){
         const pr=sessionRetryCount[idx]||0;
@@ -748,7 +879,7 @@ const exactText=p.exactCorrect>0?`✓${p.exactCorrect} exakt`:'';
     document.getElementById("card-counter").textContent=
         `${queuePos+1}/${queue.length}`+
         ` | R:${retryCnt} D:${dueCnt} W:${weakCnt} N:${newCnt}`;
-    document.getElementById("card-counter").title="Retry | Due | Weak | New";
+    document.getElementById("card-counter").title=`${currentMode} mode | ${currentType} | Retry/Due/Weak/New`;
 
     document.getElementById("card-back").classList.add("hidden");
     document.getElementById("feedback").classList.add("hidden");
@@ -767,19 +898,34 @@ const exactText=p.exactCorrect>0?`✓${p.exactCorrect} exakt`:'';
 
 function showAnswer(showActions=true){
     const v=VOCAB[currentIndex];
-    const qText=document.getElementById("question-label").textContent;
-    const isDE=qText.includes("englisch");
-    const correct=isDE?v.en:v.de;
+    let correct,context="";
+    switch(currentType){
+        case"de-en":correct=v.en;context="🇩🇪 "+v.de;break;
+        case"en-de":correct=v.de;context="🇬🇧 "+v.en;break;
+        case"cloze":correct=v.en;context=v.example;break;
+        case"pv-verb":correct=v.en_syn||v.en;context="Phrasal: "+v.en;break;
+        case"verb-pv":correct=v.en;context="Verb: "+(v.en_syn||v.en);break;
+        default:correct=v.en;
+    }
 
     document.getElementById("answer-text").textContent=correct;
     const synEl=document.getElementById("answer-synonyms");
     synEl.innerHTML=v.syn?`<strong>Synonyme:</strong> ${v.syn}`:"";
+    if(v.en_syn&&currentType!=="pv-verb"&&currentType!=="verb-pv"){
+        synEl.innerHTML+=`<br><strong>Phrasal:</strong> ${v.en} → ${v.en_syn}`;
+    }
     const expEl=document.getElementById("answer-explanation");
-    expEl.innerHTML=v.exp?`<strong>Erklärung:</strong> ${v.exp}`:"";
+    if(currentType==="cloze"&&v.example){
+        const filled=v.example.replace(new RegExp(v.en.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),'<strong>$&</strong>');
+        expEl.innerHTML=(v.exp?`<strong>Erklärung:</strong> ${v.exp}<br>`:"")+
+            `<strong>Beispiel:</strong> <em>${filled}</em>`;
+    }else if(v.example){
+        expEl.innerHTML=v.exp?`<strong>Erklärung:</strong> ${v.exp}<br><strong>Beispiel:</strong> <em>${v.example}</em>`:`<strong>Beispiel:</strong> <em>${v.example}</em>`;
+    }else{
+        expEl.innerHTML=v.exp?`<strong>Erklärung:</strong> ${v.exp}`:"";
+    }
     document.getElementById("card-back").classList.remove("hidden");
     if(showActions)document.getElementById("action-row").classList.remove("hidden");
-    // Input NICHT deaktivieren - Enter muss weiter funktionieren!
-    // NUR readonly setzen damit User nicht nachtippen kann
     document.getElementById("vokabel-input").readOnly=true;
     document.getElementById("check-btn").disabled=true;
 }
@@ -798,13 +944,35 @@ async function checkAnswer(){
     if(!input)return;
 
     const v=VOCAB[currentIndex];
-    const qText=document.getElementById("question-label").textContent;
-    const isDE=qText.includes("englisch");
-    const correctAnswer=isDE?v.en:v.de;
-    const allAnswers=[correctAnswer];
-    if(v.syn)v.syn.split(" / ").forEach(s=>{const t=s.trim();if(t)allAnswers.push(t)});
+    let correctAnswer,targets;
+    switch(currentType){
+        case"de-en":
+            correctAnswer=v.en;
+            targets=[v.en];
+            if(v.syn)v.syn.split(" / ").forEach(s=>{const t=s.trim();if(t)targets.push(t)});
+            break;
+        case"en-de":
+            correctAnswer=v.de;
+            targets=[v.de];
+            break;
+        case"cloze":
+            correctAnswer=v.en;
+            targets=[v.en];
+            break;
+        case"pv-verb":
+            correctAnswer=v.en_syn||v.en;
+            targets=[correctAnswer];
+            break;
+        case"verb-pv":
+            correctAnswer=v.en;
+            targets=[v.en];
+            break;
+        default:
+            correctAnswer=v.en;
+            targets=[v.en];
+    }
 
-    const result=isAnswerCorrect(input,allAnswers);
+    const result=isAnswerCorrect(input,targets);
     answered=true;
     lastAutoCorrect=result.correct;
     lastResultType=result.type;
