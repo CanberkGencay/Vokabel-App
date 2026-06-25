@@ -37,15 +37,19 @@
         <!-- ===== QUIZ VIEW ===== -->
         <main id="view-quiz" class="view active">
             <div class="quiz-header">
-                <div class="mode-pills">
+                <div class="mode-pills" id="mode-pills">
                     <button class="pill active" data-mode="smart">🧠 Smart</button>
-                    <button class="pill" data-mode="cloze">🔤 Lücken</button>
-                    <button class="pill" data-mode="pv-verb">🔗 PV↔Verb</button>
                     <button class="pill" data-mode="random">🎲 Zufällig</button>
                     <button class="pill" data-mode="weak">🔥 Schwach</button>
                     <button class="pill" data-mode="all">📚 Alle</button>
+                    <button class="pill" data-mode="phrasal">🔤 Phrasal</button>
                 </div>
-                <div class="dir-pills">
+                <div class="sub-pills hidden" id="phrasal-sub-pills">
+                    <button class="pill active" data-mode="phrasal-cloze">Lückentext</button>
+                    <button class="pill" data-mode="phrasal-pv">PV→Verb</button>
+                    <button class="pill" data-mode="phrasal-vp">Verb→PV</button>
+                </div>
+                <div class="dir-pills" id="dir-pills">
                     <button class="pill active" data-dir="de-en">DE → EN</button>
                     <button class="pill" data-dir="en-de">EN → DE</button>
                     <button class="pill" data-dir="mixed">🔀 Mix</button>

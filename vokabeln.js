@@ -400,8 +400,8 @@ let sessionLog=[];   // [{vocabIndex, input, correct, expected, timestamp}]
 let currentMode="smart";
 let currentDirection="de-en";
 let currentIndex=0;
-let currentType="de-en";
 let queuePos=0;
+let cardType="de-en"; // effektiver Fragetyp der aktuellen Karte (de-en/en-de/cloze/pv-verb/verb-pv)
 let answered=false;
 let queue=[];
 let sessionCorrect=0;
@@ -653,29 +653,6 @@ function sm2Forecast(){
 // ============================================================
 
 // Verfügbare Fragetypen für eine Vokabel
-function getAvailableTypes(i){
-    const v=VOCAB[i];
-    const types=["de-en","en-de"];
-    if(v.example)types.push("cloze");
-    if(v.en_syn){types.push("pv-verb");types.push("verb-pv")}
-    return types;
-}
-
-// Wählt Fragetyp für aktuelle Karte + Modus
-function getQuestionType(i,mode){
-    const types=getAvailableTypes(i);
-    if(mode==="cloze")return types.includes("cloze")?"cloze":types[0];
-    if(mode==="pv-verb"){
-        const pvTypes=types.filter(t=>t==="pv-verb"||t==="verb-pv");
-        return pvTypes.length>0?pvTypes[Math.floor(Math.random()*pvTypes.length)]:"de-en";
-    }
-    // Smart/All/Random/Weak: Richtung der direction pills beachten
-    if(currentDirection==="de-en")return types.includes("de-en")?"de-en":types[0];
-    if(currentDirection==="en-de")return types.includes("en-de")?"en-de":types[0];
-    // mixed: zufällig aus allen verfügbaren
-    return types[Math.floor(Math.random()*types.length)];
-}
-
 // ============================================================
 // QUEUE - ADAPTIVER PRIORITY ALGORITHMUS
 // ============================================================
@@ -708,22 +685,28 @@ function getLearningPriority(i){
 function isWeakVocab(i){return wrongRate(i)>0&&!isMastered(i)}
 
 function buildQueue(){
+    const isPhrasal=currentMode.startsWith("phrasal");
     const n=VOCAB.length;
 
-    // Phase 1: Filtere nach Modus
-    let indices=[];
-    if(currentMode==="cloze"){
-        // Cloze-Modus: nur Karten mit example
-        indices=VOCAB.map((_,i)=>i).filter(i=>VOCAB[i].example);
-    }else if(currentMode==="pv-verb"){
-        // PV-Verb Modus: nur Karten mit en_syn
-        indices=VOCAB.map((_,i)=>i).filter(i=>VOCAB[i].en_syn);
-    }else{
-        // Alle anderen Modi: alle Karten
-        indices=VOCAB.map((_,i)=>i);
+    // Phase 1: Nach Modus filtern
+    const indices=VOCAB.map((_,i)=>i).filter(i=>{
+        const isPV=VOCAB[i].cat==="Phrasal Verbs";
+        if(isPhrasal)return isPV;
+        return !isPV;
+    });
+
+    if(isPhrasal){
+        // Phrasal-Modi: filtere nach verfügbaren Daten + mische
+        const withData=indices.filter(i=>{
+            const v=VOCAB[i];
+            if(currentMode==="phrasal-cloze")return !!v.example;
+            return !!v.en_syn; // phrasal-pv / phrasal-vp
+        });
+        shuffle(withData);
+        return withData;
     }
 
-    // Phase 2: Kategorisiere gefilterte Karten
+    // Phase 2: Kategorisieren (nur VOCAB-Karten)
     const retry=[],due=[],newCards=[],weak=[],mastered=[],other=[];
     for(const i of indices){
         const priority=getLearningPriority(i);
@@ -735,19 +718,17 @@ function buildQueue(){
         else other.push(i);
     }
 
-    // Phase 3: Sortiere jede Kategorie
     due.sort((a,b)=>(getProgress(b).interval||1)-(getProgress(a).interval||1));
     shuffle(newCards);
     weak.sort((a,b)=>getLearningPriority(b)-getLearningPriority(a));
     shuffle(mastered);
     shuffle(other);
 
-    // Phase 4: Interleave nach Mode
+    // Phase 3: Interleave nach Mode
     let queue=[];
     const SESSION_SIZE=Math.min(n,266);
 
-    if(currentMode==="smart"||currentMode==="cloze"||currentMode==="pv-verb"){
-        // SMART / CLOZE / PV-VERB: Priority-basiertes Interleaving
+    if(currentMode==="smart"){
         let ri=0,di=0,wi=0,ni=0;
         while(queue.length<SESSION_SIZE){
             let added=false;
@@ -775,14 +756,8 @@ function buildQueue(){
         shuffle(queue);
     }
 
-    // Deduplizierung
     const seen=new Set();
-    queue=queue.filter(idx=>{
-        if(seen.has(idx))return false;
-        seen.add(idx);return true;
-    });
-
-    return queue;
+    return queue.filter(idx=>{if(seen.has(idx))return false;seen.add(idx);return true});
 }
 
 // ============================================================
@@ -822,52 +797,62 @@ function updateStats(){
 function showCard(){
     if(queuePos>=queue.length){queue=buildQueue();queuePos=0}
     currentIndex=queue[queuePos];
-    currentType=getQuestionType(currentIndex,currentMode);
     const v=VOCAB[currentIndex];
 
-    let label,question;
-    switch(currentType){
+    // Effektiven Fragetyp bestimmen
+    if(currentMode==="phrasal-cloze")cardType="cloze";
+    else if(currentMode==="phrasal-pv")cardType="pv-verb";
+    else if(currentMode==="phrasal-vp")cardType="verb-pv";
+    else if(currentDirection==="mixed")cardType=Math.random()<0.5?"de-en":"en-de";
+    else cardType=currentDirection;
+
+    let label,question,placeholder;
+    switch(cardType){
         case"de-en":
             label="Wie heißt das auf Englisch?";
             question=v.de;
+            placeholder="Englische Übersetzung";
             break;
         case"en-de":
             label="Wie heißt das auf Deutsch?";
             question=v.en;
+            placeholder="Deutsche Übersetzung";
             break;
         case"cloze":
             label="Ergänze die Lücke (Phrasal Verb):";
-            question=generateCloze(v.example,v.en)+"\n\n🇩🇪 "+v.de;
+            question=generateCloze(v.example,v.en);
+            placeholder="Phrasal Verb eintragen";
             break;
         case"pv-verb":
             label="Welches normale Verb passt zu:";
             question=v.en;
+            placeholder="z.B. postpone";
             break;
         case"verb-pv":
             label="Welches Phrasal Verb passt zu:";
             question=v.en_syn||v.en;
+            placeholder="z.B. put off";
             break;
         default:
             label="Wie heißt das?";
             question=v.de;
+            placeholder="Deine Antwort";
     }
 
     document.getElementById("question-label").textContent=label;
     document.getElementById("question-text").textContent=question;
-    document.getElementById("question-text").title=currentType==="cloze"?"Lückentext – tippe das fehlende Phrasal Verb":currentType;
-    const placeholders={deen:"Englische Übersetzung",ende:"Deutsche Übersetzung",cloze:"Phrasal Verb eintragen","pv-verb":"z.B. postpone","verb-pv":"z.B. put off"};
-    document.getElementById("vokabel-input").placeholder=placeholders[currentType]||"Deine Antwort";
+    document.getElementById("question-text").title=cardType==="cloze"?"Lückentext – tippe das Phrasal Verb":cardType;
+    document.getElementById("vokabel-input").placeholder=placeholder;
     document.getElementById("card-category").textContent=v.cat;
 
     const p=getProgress(currentIndex);
-const exactText=p.exactCorrect>0?`✓${p.exactCorrect} exakt`:'';
+    const exactText=p.exactCorrect>0?`✓${p.exactCorrect} exakt`:'';
     const attemptText=p.exactCorrect+p.wrong>0?`Versuche: ${p.exactCorrect+p.wrong} ${exactText}`:"Neue Vokabel";
     const daysUntilReview=p.exactCorrect+p.wrong>0?Math.max(0,Math.ceil((p.reviewDue-Date.now())/(24*60*60*1000))):0;
     const nextText=daysUntilReview<=0?"Fällig!":`Review in ${daysUntilReview}d`;
     const attemptTextFull=p.exactCorrect+p.wrong>0?`${attemptText} | EF ${p.easinessFactor.toFixed(1)} | ${nextText}`:attemptText;
-    const typeTags={deen:"📝",en:"📝",cloze:"🔤",pverbose:"🔗",verb:"🔗"};
-    document.getElementById("card-attempts").textContent=attemptTextFull+(currentType!=="de-en"&&currentType!=="en-de"?` | ${currentType}`:"");
-    // Queue-Info
+    document.getElementById("card-attempts").textContent=attemptTextFull;
+
     let retryCnt=0,dueCnt=0,weakCnt=0,newCnt=0;
     for(const idx of queue){
         const pr=sessionRetryCount[idx]||0;
@@ -879,7 +864,7 @@ const exactText=p.exactCorrect>0?`✓${p.exactCorrect} exakt`:'';
     document.getElementById("card-counter").textContent=
         `${queuePos+1}/${queue.length}`+
         ` | R:${retryCnt} D:${dueCnt} W:${weakCnt} N:${newCnt}`;
-    document.getElementById("card-counter").title=`${currentMode} mode | ${currentType} | Retry/Due/Weak/New`;
+    document.getElementById("card-counter").title=`Modus: ${currentMode} | Kartentyp: ${cardType}`;
 
     document.getElementById("card-back").classList.add("hidden");
     document.getElementById("feedback").classList.add("hidden");
@@ -899,7 +884,7 @@ const exactText=p.exactCorrect>0?`✓${p.exactCorrect} exakt`:'';
 function showAnswer(showActions=true){
     const v=VOCAB[currentIndex];
     let correct,context="";
-    switch(currentType){
+    switch(cardType){
         case"de-en":correct=v.en;context="🇩🇪 "+v.de;break;
         case"en-de":correct=v.de;context="🇬🇧 "+v.en;break;
         case"cloze":correct=v.en;context=v.example;break;
@@ -911,11 +896,11 @@ function showAnswer(showActions=true){
     document.getElementById("answer-text").textContent=correct;
     const synEl=document.getElementById("answer-synonyms");
     synEl.innerHTML=v.syn?`<strong>Synonyme:</strong> ${v.syn}`:"";
-    if(v.en_syn&&currentType!=="pv-verb"&&currentType!=="verb-pv"){
+    if(v.en_syn&&cardType!=="pv-verb"&&cardType!=="verb-pv"){
         synEl.innerHTML+=`<br><strong>Phrasal:</strong> ${v.en} → ${v.en_syn}`;
     }
     const expEl=document.getElementById("answer-explanation");
-    if(currentType==="cloze"&&v.example){
+    if(cardType==="cloze"&&v.example){
         const filled=v.example.replace(new RegExp(v.en.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),'<strong>$&</strong>');
         expEl.innerHTML=(v.exp?`<strong>Erklärung:</strong> ${v.exp}<br>`:"")+
             `<strong>Beispiel:</strong> <em>${filled}</em>`;
@@ -945,7 +930,7 @@ async function checkAnswer(){
 
     const v=VOCAB[currentIndex];
     let correctAnswer,targets;
-    switch(currentType){
+    switch(cardType){
         case"de-en":
             correctAnswer=v.en;
             targets=[v.en];
@@ -1468,17 +1453,44 @@ document.getElementById("vokabel-input").addEventListener("keydown",e=>{
     }
 });
 
-document.querySelectorAll(".pill[data-mode]").forEach(p=>{
+// Haupt-Modus-Pills (smart/random/weak/all/phrasal)
+document.querySelectorAll("#mode-pills .pill").forEach(p=>{
     p.addEventListener("click",()=>{
-        document.querySelectorAll(".pill[data-mode]").forEach(b=>b.classList.remove("active"));
-        p.classList.add("active");currentMode=p.dataset.mode;
+        document.querySelectorAll("#mode-pills .pill").forEach(b=>b.classList.remove("active"));
+        p.classList.add("active");
+        const mode=p.dataset.mode;
+        const subPills=document.getElementById("phrasal-sub-pills");
+        const dirPills=document.getElementById("dir-pills");
+        if(mode==="phrasal"){
+            currentMode="phrasal-cloze";
+            subPills.classList.remove("hidden");
+            dirPills.classList.add("hidden");
+            document.querySelectorAll("#phrasal-sub-pills .pill").forEach(b=>b.classList.remove("active"));
+            document.querySelector("#phrasal-sub-pills .pill[data-mode='phrasal-cloze']").classList.add("active");
+        }else{
+            currentMode=mode;
+            subPills.classList.add("hidden");
+            dirPills.classList.remove("hidden");
+        }
         queue=buildQueue();queuePos=0;showCard();
     });
 });
-document.querySelectorAll(".pill[data-dir]").forEach(p=>{
+// Phrasal-Sub-Pills (cloze/pv-verb/verb-pv)
+document.querySelectorAll("#phrasal-sub-pills .pill").forEach(p=>{
     p.addEventListener("click",()=>{
-        document.querySelectorAll(".pill[data-dir]").forEach(b=>b.classList.remove("active"));
-        p.classList.add("active");currentDirection=p.dataset.dir;showCard();
+        document.querySelectorAll("#phrasal-sub-pills .pill").forEach(b=>b.classList.remove("active"));
+        p.classList.add("active");
+        currentMode=p.dataset.mode;
+        queue=buildQueue();queuePos=0;showCard();
+    });
+});
+// Richtungs-Pills (DE→EN / EN→DE / Mix)
+document.querySelectorAll("#dir-pills .pill").forEach(p=>{
+    p.addEventListener("click",()=>{
+        document.querySelectorAll("#dir-pills .pill").forEach(b=>b.classList.remove("active"));
+        p.classList.add("active");
+        currentDirection=p.dataset.dir;
+        showCard();
     });
 });
 

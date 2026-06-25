@@ -99,7 +99,7 @@ nav{
    ============================================ */
 .quiz-header{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
 
-.mode-pills,.dir-pills{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+.mode-pills,.sub-pills,.dir-pills{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
 .pill{
     padding:6px 15px;border:1px solid var(--border);border-radius:20px;
     background:var(--surface);color:var(--text3);cursor:pointer;
