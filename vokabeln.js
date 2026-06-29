@@ -684,29 +684,9 @@ function getLearningPriority(i){
 // Schwache-Karte? (wrongRate > 0 UND nicht mastered)
 function isWeakVocab(i){return wrongRate(i)>0&&!isMastered(i)}
 
-function buildQueue(){
-    const isPhrasal=currentMode.startsWith("phrasal");
-    const n=VOCAB.length;
-
-    // Phase 1: Nach Modus filtern
-    const indices=VOCAB.map((_,i)=>i).filter(i=>{
-        const isPV=VOCAB[i].cat==="Phrasal Verbs";
-        if(isPhrasal)return isPV;
-        return !isPV;
-    });
-
-    if(isPhrasal){
-        // Phrasal-Modi: filtere nach verfügbaren Daten + mische
-        const withData=indices.filter(i=>{
-            const v=VOCAB[i];
-            if(currentMode==="phrasal-cloze")return !!v.example;
-            return !!v.en_syn; // phrasal-pv / phrasal-vp
-        });
-        shuffle(withData);
-        return withData;
-    }
-
-    // Phase 2: Kategorisieren (nur VOCAB-Karten)
+// TEILT Karten in 6 Priority-Kategorien: Retry | Due | New | Weak | Mastered | Other
+// Gibt {retry,due,newCards,weak,mastered,other} zurück — jede ein Array von Indizes
+function categorizeByPriority(indices){
     const retry=[],due=[],newCards=[],weak=[],mastered=[],other=[];
     for(const i of indices){
         const priority=getLearningPriority(i);
@@ -717,47 +697,82 @@ function buildQueue(){
         else if(priority>=40&&priority<50)mastered.push(i);
         else other.push(i);
     }
-
+    // Jede Kategorie sinnvoll sortieren
     due.sort((a,b)=>(getProgress(b).interval||1)-(getProgress(a).interval||1));
-    shuffle(newCards);
     weak.sort((a,b)=>getLearningPriority(b)-getLearningPriority(a));
-    shuffle(mastered);
-    shuffle(other);
+    shuffle(newCards);shuffle(mastered);shuffle(other);
+    return{retry,due,newCards,weak,mastered,other};
+}
 
-    // Phase 3: Interleave nach Mode
-    let queue=[];
-    const SESSION_SIZE=Math.min(n,266);
+// MISCHT Kategorien zum Queue mit Retry/Due/Weak/New-Interleave
+// Ratio: 1 Retry : 3 Due : 2 Weak : 3 New pro Block
+// Verhältnis bildet die natürliche Lernpyramide ab
+// Gibt Array von Indizes zurück (dedupliziert)
+function interleave(cats,size){
+    const{retry,due,newCards,weak,other}=cats;
+    const queue=[];
+    const seen=new Set();
+    let ri=0,di=0,wi=0,ni=0;
 
-    if(currentMode==="smart"){
-        let ri=0,di=0,wi=0,ni=0;
-        while(queue.length<SESSION_SIZE){
-            let added=false;
-            if(ri<retry.length){queue.push(retry[ri++]);added=true;}
-            for(let k=0;k<3&&di<due.length&&queue.length<SESSION_SIZE;k++){queue.push(due[di++]);added=true;}
-            for(let k=0;k<2&&wi<weak.length&&queue.length<SESSION_SIZE;k++){queue.push(weak[wi++]);added=true;}
-            for(let k=0;k<3&&ni<newCards.length&&queue.length<SESSION_SIZE;k++){queue.push(newCards[ni++]);added=true;}
-            if(!added)break;
-        }
-        const maxOthers=Math.floor(SESSION_SIZE*0.3);
-        const othersNonMastered=other.filter(i=>!isMastered(i));
-        shuffle(othersNonMastered);
-        let oi=0;
-        while(queue.length<SESSION_SIZE&&oi<othersNonMastered.length&&oi<maxOthers){
-            queue.push(othersNonMastered[oi++]);
-        }
-    }else if(currentMode==="weak"){
-        queue=[...weak,...newCards.slice(0,20)];
-    }else if(currentMode==="random"){
-        queue=[...retry,...due,...weak,...newCards,...other,...mastered];
-        shuffle(queue);
-    }else{
-        // ALL
-        queue=[...retry,...due,...weak,...newCards,...other,...mastered];
-        shuffle(queue);
+    while(queue.length<size){
+        let added=false;
+        if(ri<retry.length){queue.push(retry[ri++]);added=true;}
+        for(let k=0;k<3&&di<due.length&&queue.length<size;k++){queue.push(due[di++]);added=true;}
+        for(let k=0;k<2&&wi<weak.length&&queue.length<size;k++){queue.push(weak[wi++]);added=true;}
+        for(let k=0;k<3&&ni<newCards.length&&queue.length<size;k++){queue.push(newCards[ni++]);added=true;}
+        if(!added)break;
     }
 
+    // Bis zu 30% Other (non-mastered) als Füller
+    const othersNonMastered=other.filter(i=>!isMastered(i));
+    shuffle(othersNonMastered);
+    const maxOthers=Math.floor(size*0.3);
+    let oi=0;
+    while(queue.length<size&&oi<othersNonMastered.length&&oi<maxOthers){
+        queue.push(othersNonMastered[oi++]);
+    }
+    return queue;
+}
+
+function buildQueue(){
+    const isPhrasal=currentMode.startsWith("phrasal");
+    const isSmart=currentMode==="smart";
+    const isWeak=currentMode==="weak";
+    const isRandom=currentMode==="random";
+    const isAll=currentMode==="all";
+
+    // Phase 1: Modus-Filter
+    const indices=VOCAB.map((_,i)=>i).filter(i=>{
+        const isPV=VOCAB[i].cat==="Phrasal Verbs";
+        if(isPhrasal){
+            const v=VOCAB[i];
+            if(currentMode==="phrasal-cloze")return !!v.example;
+            return !!v.en_syn; // phrasal-pv / phrasal-vp
+        }
+        return !isPV; // smart/random/weak/all: nur VOCAB
+    });
+
+    // Phase 2: Nach Priority kategorisieren
+    const cats=categorizeByPriority(indices);
+
+    // Phase 3: Nach Modus mischen
+    if(isSmart){
+        const size=Math.min(indices.length,266);
+        return interleave(cats,size);
+    }
+    if(isPhrasal){
+        // Phrasal: Priority-Interleave, aber kleiner (alle 3 Sub-Modi teilen sich 43 Karten)
+        const size=Math.min(indices.length,50);
+        return interleave(cats,size);
+    }
+    if(isWeak){
+        return[...cats.weak,...cats.newCards.slice(0,20)];
+    }
+    // random / all: alles mischen (inkl. mastered)
+    const all=[...cats.retry,...cats.due,...cats.weak,...cats.newCards,...cats.other,...cats.mastered];
+    shuffle(all);
     const seen=new Set();
-    return queue.filter(idx=>{if(seen.has(idx))return false;seen.add(idx);return true});
+    return all.filter(idx=>{if(seen.has(idx))return false;seen.add(idx);return true});
 }
 
 // ============================================================
